@@ -17,10 +17,33 @@ type Props = {
 export function MeaningTest({ word, onSubmit }: Props) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const onSubmitRef = useRef(onSubmit);
+
+  useEffect(() => {
+    onSubmitRef.current = onSubmit;
+  }, [onSubmit]);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, [word.id]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onSubmitRef.current("gave_up", "");
+        return;
+      }
+      if (e.key === "Tab" && !e.shiftKey && inputRef.current) {
+        if (document.activeElement !== inputRef.current) {
+          e.preventDefault();
+          inputRef.current.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const submit = () => {
     const trimmed = value.trim();
@@ -73,13 +96,19 @@ export function MeaningTest({ word, onSubmit }: Props) {
           className="bg-red-soft text-red hover:bg-red/10 flex-1 rounded-[12px] py-3 text-sm font-semibold"
         >
           I don&apos;t know
+          <kbd className="bg-red/10 ring-red/20 ml-1 inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[10px] font-bold ring-1">
+            Esc
+          </kbd>
         </Button>
         <Button
           type="button"
           onClick={submit}
           className="bg-red hover:bg-red/90 flex-2 rounded-[12px] py-3 text-sm font-semibold text-white"
         >
-          Check ↵
+          Check
+          <kbd className="ml-1 inline-flex items-center rounded bg-white/20 px-1.5 py-0.5 font-mono text-[10px] font-bold ring-1 ring-white/30">
+            Enter
+          </kbd>
         </Button>
       </div>
     </div>

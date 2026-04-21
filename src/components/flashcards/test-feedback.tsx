@@ -94,7 +94,10 @@ export function TestFeedback({
         onClick={onNext}
         className="bg-red hover:bg-red/90 w-full rounded-[12px] py-3 text-sm font-semibold text-white"
       >
-        Next ↵
+        Next
+        <kbd className="ml-1 inline-flex items-center rounded bg-white/20 px-1.5 py-0.5 font-mono text-[10px] font-bold ring-1 ring-white/30">
+          Enter
+        </kbd>
       </Button>
     </div>
   );

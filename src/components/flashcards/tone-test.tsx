@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ChineseText } from "~/components/shared/chinese-text";
 import { Button } from "~/components/ui/button";
@@ -20,7 +20,7 @@ const TONE_OPTIONS: { value: number; mark: string; number: string }[] = [
   { value: 2, mark: "ˊ", number: "2" },
   { value: 3, mark: "ˇ", number: "3" },
   { value: 4, mark: "ˋ", number: "4" },
-  { value: 5, mark: "·", number: "·" },
+  { value: 5, mark: "·", number: "5" },
 ];
 
 const TONE_BG: Record<number, string> = {
@@ -34,11 +34,50 @@ const TONE_BG: Record<number, string> = {
 export function ToneTest({ word, onSubmit }: Props) {
   const chars = word.characters ?? [];
   const [picks, setPicks] = useState<(number | null)[]>(() => chars.map(() => null));
+  const [cursor, setCursor] = useState(0);
+  const cursorRef = useRef(0);
 
   useEffect(() => {
     setPicks(chars.map(() => null));
+    cursorRef.current = 0;
+    setCursor(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [word.id]);
+
+  const advanceCursor = (from: number) => {
+    const next = chars.length ? (from + 1) % chars.length : 0;
+    cursorRef.current = next;
+    setCursor(next);
+  };
+
+  const onSubmitRef = useRef(onSubmit);
+  useEffect(() => {
+    onSubmitRef.current = onSubmit;
+  }, [onSubmit]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onSubmitRef.current("gave_up", []);
+        return;
+      }
+      if (chars.length === 0) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const n = Number(e.key);
+      if (!Number.isInteger(n) || n < 1 || n > 5) return;
+      e.preventDefault();
+      const i = cursorRef.current;
+      setPicks((prev) => prev.map((p, idx) => (idx === i ? n : p)));
+      advanceCursor(i);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chars.length]);
 
   const allFilled = picks.every((p) => p !== null);
 
@@ -68,48 +107,62 @@ export function ToneTest({ word, onSubmit }: Props) {
         </div>
       </Card>
 
+      <div className="text-text3 text-center text-[11px]">
+        Tip: press <kbd className="bg-muted rounded px-1 py-0.5 font-mono text-[10px]">1</kbd>–<kbd className="bg-muted rounded px-1 py-0.5 font-mono text-[10px]">5</kbd> to fill in order
+      </div>
+
       <div className="flex flex-wrap justify-center gap-4">
-        {chars.map((c, i) => (
-          <div key={`${c.char}-${i}`} className="flex flex-col items-center gap-2">
-            <ChineseText
-              as="div"
-              className="text-[30px] font-black leading-none"
+        {chars.map((c, i) => {
+          const isCursor = i === cursor;
+          return (
+            <div
+              key={`${c.char}-${i}`}
+              className={cn(
+                "flex flex-col items-center gap-2 rounded-[12px] p-2 transition-all",
+                isCursor && "ring-red/40 bg-red/5 ring-2",
+              )}
             >
-              {c.char}
-            </ChineseText>
-            <div className="text-text3 font-mono text-xs">{stripTones(c.pinyin)}</div>
-            <div className="flex gap-1">
-              {TONE_OPTIONS.map((opt) => {
-                const selected = picks[i] === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() =>
-                      setPicks((prev) =>
-                        prev.map((p, idx) => (idx === i ? opt.value : p)),
-                      )
-                    }
-                    className={cn(
-                      "flex h-10 w-10 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[8px] transition-all",
-                      selected
-                        ? TONE_BG[opt.value]
-                        : "bg-muted text-text3 hover:bg-muted/70",
-                    )}
-                    aria-label={`Tone ${opt.number}`}
-                  >
-                    <span className="text-lg leading-none font-semibold">
-                      {opt.mark}
-                    </span>
-                    <span className="text-[9px] leading-none opacity-70">
-                      {opt.number}
-                    </span>
-                  </button>
-                );
-              })}
+              <ChineseText
+                as="div"
+                className="text-[30px] font-black leading-none"
+              >
+                {c.char}
+              </ChineseText>
+              <div className="text-text3 font-mono text-xs">{stripTones(c.pinyin)}</div>
+              <div className="flex gap-1">
+                {TONE_OPTIONS.map((opt) => {
+                  const selected = picks[i] === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setPicks((prev) =>
+                          prev.map((p, idx) => (idx === i ? opt.value : p)),
+                        );
+                        advanceCursor(i);
+                      }}
+                      className={cn(
+                        "flex h-10 w-10 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[8px] transition-all",
+                        selected
+                          ? TONE_BG[opt.value]
+                          : "bg-muted text-text3 hover:bg-muted/70",
+                      )}
+                      aria-label={`Tone ${opt.number}`}
+                    >
+                      <span className="text-lg leading-none font-semibold">
+                        {opt.mark}
+                      </span>
+                      <span className="text-[9px] leading-none opacity-70">
+                        {opt.number}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="flex gap-2">
@@ -120,6 +173,9 @@ export function ToneTest({ word, onSubmit }: Props) {
           className="bg-red-soft text-red hover:bg-red/10 flex-1 rounded-[12px] py-3 text-sm font-semibold"
         >
           I don&apos;t know
+          <kbd className="bg-red/10 ring-red/20 ml-1 inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[10px] font-bold ring-1">
+            Esc
+          </kbd>
         </Button>
         <Button
           type="button"
