@@ -42,6 +42,10 @@ export const vocabRouter = createTRPCRouter({
           ilike(vocabWords.english, pattern),
           ilike(vocabWords.chinese, pattern),
           ilike(vocabWords.pinyin, pattern),
+          sql`EXISTS (
+            SELECT 1 FROM unnest(${vocabWords.tags}) AS tag
+            WHERE tag ILIKE ${pattern}
+          )`,
         )!,
       );
     }
