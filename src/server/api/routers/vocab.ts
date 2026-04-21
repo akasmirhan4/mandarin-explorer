@@ -98,8 +98,8 @@ export const vocabRouter = createTRPCRouter({
         .from(vocabWords)
         .where(
           and(
-            eq(vocabWords.english, english),
             eq(vocabWords.chinese, translation.chinese),
+            eq(vocabWords.pinyin, translation.pinyin_marks),
           ),
         )
         .limit(1);

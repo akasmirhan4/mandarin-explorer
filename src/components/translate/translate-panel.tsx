@@ -57,7 +57,7 @@ export function TranslatePanel() {
       const seen = new Set<string>();
       const queue: SavePayload[] = [];
       const enqueue = (english: string, t: TranslationOption) => {
-        const key = `${english.toLowerCase()}|${t.chinese}`;
+        const key = `${t.chinese}|${t.pinyin_marks}`;
         if (seen.has(key)) return;
         seen.add(key);
         queue.push({ english, translation: t });
