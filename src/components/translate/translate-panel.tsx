@@ -15,6 +15,15 @@ import type {
   WordBreakdown,
 } from "~/server/lib/schemas/translation";
 
+function isSentenceLike(english: string, chinese: string): boolean {
+  if (/[。！？，、；：,.!?;:]/.test(chinese)) return true;
+  const chineseChars = chinese.match(/[一-鿿]/g)?.length ?? 0;
+  if (chineseChars > 6) return true;
+  const englishWords = english.trim().split(/\s+/).filter(Boolean).length;
+  if (englishWords > 3) return true;
+  return false;
+}
+
 function wordToTranslationOption(w: WordBreakdown): TranslationOption {
   return {
     chinese: w.chinese,
@@ -64,7 +73,9 @@ export function TranslatePanel() {
       };
 
       for (const t of data.translations) {
-        enqueue(data.word, t);
+        if (!isSentenceLike(data.word, t.chinese)) {
+          enqueue(data.word, t);
+        }
         for (const ex of t.examples) {
           for (const w of ex.words) {
             if (!w.english || !w.chinese) continue;

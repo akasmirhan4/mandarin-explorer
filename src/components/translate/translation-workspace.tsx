@@ -51,7 +51,6 @@ export function TranslationWorkspace({ data, selectedIdx, onSelect }: Props) {
               <ChineseText
                 as="div"
                 className="min-w-[70px] text-center text-[32px] leading-none font-black max-[740px]:min-w-[55px] max-[740px]:text-[26px]"
-                speakable={false}
               >
                 {t.chinese}
               </ChineseText>
