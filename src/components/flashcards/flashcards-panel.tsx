@@ -364,7 +364,7 @@ export function FlashcardsPanel() {
 
 function Stat({ num, label }: { num: number; label: string }) {
   return (
-    <Card className="bg-card rounded-xl p-0 shadow-(--shadow-sm-app) ring-0">
+    <Card className="bg-card flex-1 rounded-xl p-0 shadow-(--shadow-sm-app) ring-0">
       <CardContent className="px-5 py-3 text-center">
         <div className="text-2xl font-bold">{num}</div>
         <div className="text-text3 text-[10px] font-semibold tracking-[1px] uppercase">
