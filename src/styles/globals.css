@@ -198,18 +198,9 @@
   background: var(--jade);
 }
 
-.scroll-soft {
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
-  transition: scrollbar-color 0.2s ease;
-}
-.scroll-soft:hover,
-.scroll-soft:focus-within {
-  scrollbar-color: color-mix(in oklab, var(--text3) 40%, transparent) transparent;
-}
 .scroll-soft::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 .scroll-soft::-webkit-scrollbar-track {
   background: transparent;
@@ -222,12 +213,16 @@
 .scroll-soft::-webkit-scrollbar-thumb {
   background: transparent;
   border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
   transition: background 0.2s ease;
 }
 .scroll-soft:hover::-webkit-scrollbar-thumb,
 .scroll-soft:focus-within::-webkit-scrollbar-thumb {
   background: color-mix(in oklab, var(--text3) 35%, transparent);
+  background-clip: padding-box;
 }
 .scroll-soft::-webkit-scrollbar-thumb:hover {
   background: color-mix(in oklab, var(--text3) 55%, transparent);
+  background-clip: padding-box;
 }

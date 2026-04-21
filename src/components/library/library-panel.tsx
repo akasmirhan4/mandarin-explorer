@@ -201,11 +201,11 @@ export function LibraryPanel() {
           }}
         >
           {selected && (
-            <DialogContent className="flex max-h-[90vh] w-full max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+            <DialogContent className="flex max-h-[90vh] w-full max-w-3xl flex-col gap-0 overflow-hidden px-0 py-3 sm:max-w-3xl">
               <DialogTitle className="sr-only">
                 {selected.chinese} — {selected.english}
               </DialogTitle>
-              <div className="scroll-soft min-h-0 flex-1 overflow-y-auto px-5 py-5">
+              <div className="scroll-soft min-h-0 flex-1 overflow-y-auto px-5 py-2">
                 <div className="mb-5 flex items-start gap-5 pr-8">
                   <ChineseText
                     as="div"
