@@ -9,6 +9,9 @@ const listInputSchema = z.object({
   topic: z.string().optional(),
   tone: z.number().int().min(1).max(5).optional(),
   masteryBucket: z.enum(["new", "learning", "reviewing", "mastered"]).optional(),
+  hskLevel: z
+    .enum(["1", "2", "3", "4", "5", "6", "7", "8", "9", "none"])
+    .optional(),
   search: z.string().optional(),
   limit: z.number().int().min(1).max(500).default(200),
   offset: z.number().int().min(0).default(0),
@@ -50,6 +53,12 @@ export const vocabRouter = createTRPCRouter({
           WHERE (c->>'tone')::int = ${input.tone}
         )`,
       );
+    }
+
+    if (input.hskLevel === "none") {
+      conditions.push(sql`${vocabWords.hskLevel} IS NULL`);
+    } else if (input.hskLevel !== undefined) {
+      conditions.push(eq(vocabWords.hskLevel, Number(input.hskLevel)));
     }
 
     const rows = await ctx.db

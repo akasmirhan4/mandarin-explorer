@@ -49,13 +49,38 @@ const TONES: { value: string; label: string }[] = [
   { value: "4", label: "4th (à)" },
 ];
 
+const HSK_LEVELS: { value: string; label: string }[] = [
+  { value: "1", label: "HSK 1" },
+  { value: "2", label: "HSK 2" },
+  { value: "3", label: "HSK 3" },
+  { value: "4", label: "HSK 4" },
+  { value: "5", label: "HSK 5" },
+  { value: "6", label: "HSK 6" },
+  { value: "7", label: "HSK 7" },
+  { value: "8", label: "HSK 8" },
+  { value: "9", label: "HSK 9" },
+  { value: "none", label: "Unclassified" },
+];
+
 type MasteryBucket = "new" | "learning" | "reviewing" | "mastered";
+type HskFilter =
+  | "1"
+  | "2"
+  | "3"
+  | "4"
+  | "5"
+  | "6"
+  | "7"
+  | "8"
+  | "9"
+  | "none";
 
 export function LibraryPanel() {
   const [search, setSearch] = useState("");
   const [topic, setTopic] = useState<string>("");
   const [tone, setTone] = useState<string>("");
   const [masteryBucket, setMasteryBucket] = useState<string>("");
+  const [hskLevel, setHskLevel] = useState<string>("");
 
   const utils = api.useUtils();
   const listQuery = api.vocab.list.useQuery({
@@ -63,6 +88,7 @@ export function LibraryPanel() {
     topic: topic || undefined,
     tone: tone ? Number(tone) : undefined,
     masteryBucket: (masteryBucket as MasteryBucket) || undefined,
+    hskLevel: (hskLevel as HskFilter) || undefined,
     limit: 200,
     offset: 0,
   });
@@ -109,6 +135,12 @@ export function LibraryPanel() {
             { value: "reviewing", label: "Reviewing" },
             { value: "mastered", label: "Mastered" },
           ]}
+        />
+        <FilterSelect
+          value={hskLevel}
+          onChange={setHskLevel}
+          placeholder="All HSK"
+          options={HSK_LEVELS}
         />
       </div>
 
