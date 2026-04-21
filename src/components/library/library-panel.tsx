@@ -5,8 +5,14 @@ import { toast } from "sonner";
 
 import { ChineseText } from "~/components/shared/chinese-text";
 import { TagPill } from "~/components/shared/tag-pill";
+import { WordDetailView } from "~/components/shared/word-detail-view";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent } from "~/components/ui/card";
+import { Card } from "~/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "~/components/ui/dialog";
 import {
   Empty,
   EmptyDescription,
@@ -23,7 +29,29 @@ import {
 } from "~/components/ui/select";
 import { Skeleton } from "~/components/ui/skeleton";
 import { cn } from "~/lib/utils";
+import type { VocabWord } from "~/server/db/schema";
+import type { TranslationOption } from "~/server/lib/schemas/translation";
 import { api } from "~/trpc/react";
+
+function vocabToWord(row: VocabWord): TranslationOption {
+  return {
+    chinese: row.chinese,
+    pinyin_marks: row.pinyin,
+    meaning: row.meaning ?? "",
+    context: row.context ?? "",
+    literal_meaning: row.literalMeaning ?? "",
+    topic: row.topic ?? "general",
+    hsk_level: row.hskLevel ?? null,
+    tags: row.tags ?? [],
+    characters: row.characters ?? [],
+    examples: (row.examples ?? []).map((e) => ({
+      chinese: e.chinese,
+      pinyin: e.pinyin,
+      english: e.english,
+      words: e.words ?? [],
+    })),
+  };
+}
 
 const TOPICS = [
   "general",
@@ -81,6 +109,7 @@ export function LibraryPanel() {
   const [tone, setTone] = useState<string>("");
   const [masteryBucket, setMasteryBucket] = useState<string>("");
   const [hskLevel, setHskLevel] = useState<string>("");
+  const [selected, setSelected] = useState<VocabWord | null>(null);
 
   const utils = api.useUtils();
   const listQuery = api.vocab.list.useQuery({
@@ -161,6 +190,53 @@ export function LibraryPanel() {
           </Empty>
         )}
 
+        {/* detail dialog */}
+        <Dialog
+          open={!!selected}
+          onOpenChange={(o) => {
+            if (!o) setSelected(null);
+          }}
+        >
+          {selected && (
+            <DialogContent className="max-h-[90vh] w-full max-w-3xl overflow-y-auto sm:max-w-3xl">
+              <DialogTitle className="sr-only">
+                {selected.chinese} — {selected.english}
+              </DialogTitle>
+              <div className="mb-5 flex items-start gap-5">
+                <ChineseText
+                  as="div"
+                  className="min-w-[72px] text-center text-[44px] leading-none font-black"
+                >
+                  {selected.chinese}
+                </ChineseText>
+                <div className="flex flex-1 flex-col gap-1">
+                  <div className="text-red text-lg font-semibold">
+                    {selected.pinyin}
+                  </div>
+                  <div className="text-text2 text-sm">
+                    {selected.english}
+                    {selected.meaning ? ` — ${selected.meaning}` : ""}
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-1">
+                    {selected.topic && selected.topic !== "general" && (
+                      <TagPill variant="topic">{selected.topic}</TagPill>
+                    )}
+                    {selected.hskLevel ? (
+                      <TagPill variant="hsk">HSK {selected.hskLevel}</TagPill>
+                    ) : null}
+                    {(selected.tags ?? []).map((t, i) => (
+                      <TagPill key={i} variant="custom">
+                        {t}
+                      </TagPill>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <WordDetailView word={vocabToWord(selected)} />
+            </DialogContent>
+          )}
+        </Dialog>
+
         {items.map((w) => {
           const m = w.mastery ?? 0;
           const created = w.createdAt
@@ -172,7 +248,16 @@ export function LibraryPanel() {
           return (
             <Card
               key={w.id}
-              className="bg-card grid grid-cols-[auto_1fr_auto] items-center gap-4 rounded-app border-2 border-transparent px-5 py-4 shadow-(--shadow-sm-app) ring-0 transition-all hover:border-border max-[740px]:grid-cols-[auto_1fr]"
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelected(w)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setSelected(w);
+                }
+              }}
+              className="bg-card grid cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-4 rounded-app border-2 border-transparent px-5 py-4 shadow-(--shadow-sm-app) ring-0 transition-all hover:border-border focus-visible:border-red focus-visible:outline-none max-[740px]:grid-cols-[auto_1fr]"
             >
               <ChineseText
                 as="div"
@@ -210,7 +295,8 @@ export function LibraryPanel() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     if (window.confirm("Delete?")) {
                       deleteVocab.mutate({ id: w.id });
                     }

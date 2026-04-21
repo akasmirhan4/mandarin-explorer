@@ -9,7 +9,26 @@ import { Input } from "~/components/ui/input";
 import { Spinner } from "~/components/ui/spinner";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
-import type { TranslationResponse } from "~/server/lib/schemas/translation";
+import type {
+  TranslationOption,
+  TranslationResponse,
+  WordBreakdown,
+} from "~/server/lib/schemas/translation";
+
+function wordToTranslationOption(w: WordBreakdown): TranslationOption {
+  return {
+    chinese: w.chinese,
+    pinyin_marks: w.pinyin_marks,
+    meaning: w.meaning,
+    context: w.context ?? "",
+    literal_meaning: w.literal_meaning ?? "",
+    topic: w.topic ?? "general",
+    hsk_level: w.hsk_level ?? null,
+    tags: w.tags ?? [],
+    characters: w.characters ?? [],
+    examples: [],
+  };
+}
 
 const HINT_WORDS = [
   "hello",
@@ -34,18 +53,49 @@ export function TranslatePanel() {
       setResult(data);
       setSelectedIdx(0);
 
+      type SavePayload = { english: string; translation: TranslationOption };
+      const seen = new Set<string>();
+      const queue: SavePayload[] = [];
+      const enqueue = (english: string, t: TranslationOption) => {
+        const key = `${english.toLowerCase()}|${t.chinese}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        queue.push({ english, translation: t });
+      };
+
       for (const t of data.translations) {
-        createVocab.mutate(
-          { english: data.word, translation: t },
-          {
-            onSuccess: (res) => {
-              if (res.created) {
-                void utils.vocab.count.invalidate();
-                void utils.vocab.list.invalidate();
-              }
-            },
+        enqueue(data.word, t);
+        for (const ex of t.examples) {
+          for (const w of ex.words) {
+            if (!w.english || !w.chinese) continue;
+            enqueue(w.english, wordToTranslationOption(w));
+          }
+        }
+      }
+
+      let createdCount = 0;
+      let settled = 0;
+      const total = queue.length;
+      if (total === 0) return;
+
+      for (const payload of queue) {
+        createVocab.mutate(payload, {
+          onSuccess: (res) => {
+            if (res.created) {
+              createdCount++;
+              void utils.vocab.count.invalidate();
+              void utils.vocab.list.invalidate();
+            }
           },
-        );
+          onSettled: () => {
+            settled++;
+            if (settled === total && createdCount > 0) {
+              toast.success(
+                `Saved ${createdCount} new word${createdCount === 1 ? "" : "s"} to your library`,
+              );
+            }
+          },
+        });
       }
     },
     onError: (err) => {

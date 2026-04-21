@@ -12,10 +12,24 @@ export const characterDataSchema = z.object({
   total_strokes: z.number().int(),
 });
 
+export const wordBreakdownSchema = z.object({
+  english: z.string(),
+  chinese: z.string(),
+  pinyin_marks: z.string(),
+  meaning: z.string(),
+  literal_meaning: z.string().optional().default(""),
+  context: z.string().optional().default(""),
+  topic: z.string().default("general"),
+  hsk_level: z.number().int().min(1).max(9).nullable().optional(),
+  tags: z.array(z.string()).default([]),
+  characters: z.array(characterDataSchema).default([]),
+});
+
 export const exampleSentenceSchema = z.object({
   chinese: z.string(),
   pinyin: z.string(),
   english: z.string(),
+  words: z.array(wordBreakdownSchema).default([]),
 });
 
 export const translationOptionSchema = z.object({
@@ -38,5 +52,6 @@ export const translationResponseSchema = z.object({
 
 export type CharacterDataInput = z.infer<typeof characterDataSchema>;
 export type ExampleSentenceInput = z.infer<typeof exampleSentenceSchema>;
+export type WordBreakdown = z.infer<typeof wordBreakdownSchema>;
 export type TranslationOption = z.infer<typeof translationOptionSchema>;
 export type TranslationResponse = z.infer<typeof translationResponseSchema>;
