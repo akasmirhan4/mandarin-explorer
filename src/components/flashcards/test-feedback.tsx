@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
@@ -39,6 +39,11 @@ const GRADE_META: Record<Grade, { label: string; accent: string; ring: string }>
 
 export function TestFeedback({ grade, correctAnswer, userAnswer, onNext }: Props) {
   const meta = GRADE_META[grade];
+  const onNextRef = useRef(onNext);
+
+  useEffect(() => {
+    onNextRef.current = onNext;
+  }, [onNext]);
 
   useEffect(() => {
     let armed = false;
@@ -46,18 +51,16 @@ export function TestFeedback({ grade, correctAnswer, userAnswer, onNext }: Props
       armed = true;
     }, 150);
     const handler = (e: KeyboardEvent) => {
-      if (!armed) return;
-      if (e.key === "Enter") {
-        e.preventDefault();
-        onNext();
-      }
+      if (!armed || e.key !== "Enter") return;
+      e.preventDefault();
+      onNextRef.current();
     };
     window.addEventListener("keydown", handler);
     return () => {
       window.clearTimeout(armTimer);
       window.removeEventListener("keydown", handler);
     };
-  }, [onNext]);
+  }, []);
 
   return (
     <div className="space-y-3">
