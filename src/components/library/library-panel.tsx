@@ -109,7 +109,7 @@ export function LibraryPanel() {
   const [tone, setTone] = useState<string>("");
   const [masteryBucket, setMasteryBucket] = useState<string>("");
   const [hskLevel, setHskLevel] = useState<string>("");
-  const [selected, setSelected] = useState<VocabWord | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const utils = api.useUtils();
   const listQuery = api.vocab.list.useQuery({
@@ -132,6 +132,9 @@ export function LibraryPanel() {
   });
 
   const items = listQuery.data ?? [];
+  const selected = selectedId
+    ? (items.find((w) => w.id === selectedId) ?? null)
+    : null;
 
   return (
     <div>
@@ -194,7 +197,7 @@ export function LibraryPanel() {
         <Dialog
           open={!!selected}
           onOpenChange={(o) => {
-            if (!o) setSelected(null);
+            if (!o) setSelectedId(null);
           }}
         >
           {selected && (
@@ -232,7 +235,7 @@ export function LibraryPanel() {
                   </div>
                 </div>
               </div>
-              <WordDetailView word={vocabToWord(selected)} />
+              <WordDetailView word={vocabToWord(selected)} wordId={selected.id} />
             </DialogContent>
           )}
         </Dialog>
@@ -250,11 +253,11 @@ export function LibraryPanel() {
               key={w.id}
               role="button"
               tabIndex={0}
-              onClick={() => setSelected(w)}
+              onClick={() => setSelectedId(w.id)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  setSelected(w);
+                  setSelectedId(w.id);
                 }
               }}
               className="bg-card grid cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-4 rounded-app border-2 border-transparent px-5 py-4 shadow-(--shadow-sm-app) ring-0 transition-all hover:border-border focus-visible:border-red focus-visible:outline-none max-[740px]:grid-cols-[auto_1fr]"

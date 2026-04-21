@@ -1,6 +1,8 @@
 "use client";
 
+import { Loader2, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { ChineseText } from "~/components/shared/chinese-text";
 import { ToneBadge } from "~/components/shared/tone-badge";
@@ -17,19 +19,38 @@ import { Empty, EmptyDescription } from "~/components/ui/empty";
 import { Separator } from "~/components/ui/separator";
 import { cn } from "~/lib/utils";
 import type { TranslationOption } from "~/server/lib/schemas/translation";
+import { api } from "~/trpc/react";
 
 type Props = {
   word: TranslationOption;
+  wordId?: string;
 };
 
-export function WordDetailView({ word }: Props) {
+export function WordDetailView({ word, wordId }: Props) {
   const [charIdx, setCharIdx] = useState(0);
+  const utils = api.useUtils();
+
+  const generateExamples = api.vocab.generateExamples.useMutation({
+    onSuccess: (data) => {
+      const n = data.added.length;
+      const w = data.addedWords;
+      const wordSuffix =
+        w > 0 ? ` · ${w} new word${w === 1 ? "" : "s"} saved` : "";
+      toast.success(
+        `Added ${n} example${n === 1 ? "" : "s"}${wordSuffix}`,
+      );
+      void utils.vocab.list.invalidate();
+      void utils.vocab.count.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   useEffect(() => {
     setCharIdx(0);
   }, [word]);
 
   const activeChar = word.characters[charIdx];
+  const isGenerating = generateExamples.isPending;
 
   return (
     <div className="grid grid-cols-2 gap-[18px] max-[740px]:grid-cols-1">
@@ -58,9 +79,33 @@ export function WordDetailView({ word }: Props) {
           {activeChar && <StrokeOrderViewer character={activeChar.char} />}
         </Panel>
 
-        <Panel title="Examples" tone="gold">
+        <Panel
+          title="Examples"
+          tone="gold"
+          action={
+            wordId ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isGenerating}
+                onClick={() =>
+                  generateExamples.mutate({ id: wordId, count: 1 })
+                }
+                className="border-border hover:border-gold hover:text-gold hover:bg-gold-soft h-auto rounded-[7px] border bg-white px-2.5 py-1 text-[10px] font-semibold"
+              >
+                {isGenerating ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <Sparkles className="size-3" />
+                )}
+                {isGenerating ? "Generating..." : "Generate example"}
+              </Button>
+            ) : null
+          }
+        >
           <div className="flex flex-col gap-3">
-            {word.examples.length === 0 && (
+            {word.examples.length === 0 && !isGenerating && (
               <Empty className="border-0 py-3">
                 <EmptyDescription>No examples</EmptyDescription>
               </Empty>
@@ -77,6 +122,12 @@ export function WordDetailView({ word }: Props) {
                 <div className="text-text2 text-xs">{e.english}</div>
               </div>
             ))}
+            {isGenerating && (
+              <div className="bg-background text-text3 flex items-center gap-2 rounded-[9px] border-l-[3px] border-[var(--gold)] px-3.5 py-3 text-xs">
+                <Loader2 className="size-3 animate-spin" />
+                Generating a new example...
+              </div>
+            )}
           </div>
         </Panel>
       </div>
@@ -172,10 +223,12 @@ function Panel({
   title,
   tone,
   children,
+  action,
 }: {
   title: string;
   tone: "red" | "jade" | "blue" | "gold";
   children: React.ReactNode;
+  action?: React.ReactNode;
 }) {
   const toneClass = {
     red: "text-red",
@@ -195,6 +248,7 @@ function Panel({
         >
           {title}
         </CardTitle>
+        {action}
       </CardHeader>
       <CardContent className="p-5">{children}</CardContent>
     </Card>

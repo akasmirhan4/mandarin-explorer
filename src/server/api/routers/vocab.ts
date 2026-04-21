@@ -1,9 +1,56 @@
+import { TRPCError } from "@trpc/server";
 import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { vocabWords } from "~/server/db/schema";
-import { translationOptionSchema } from "~/server/lib/schemas/translation";
+import { getAnthropic, TRANSLATION_MODEL } from "~/server/lib/anthropic";
+import {
+  exampleSentenceSchema,
+  translationOptionSchema,
+} from "~/server/lib/schemas/translation";
+import type { ExampleSentenceInput } from "~/server/lib/schemas/translation";
+
+const generateExamplesResponseSchema = z.object({
+  examples: z.array(exampleSentenceSchema).min(1),
+});
+
+function buildExamplesPrompt(
+  chinese: string,
+  pinyin: string,
+  meaning: string,
+  existing: string[],
+  count: number,
+): string {
+  const avoid = existing.length
+    ? `\nDo NOT repeat any of these existing sentences (write new, different ones):\n${existing.map((s) => `- ${s}`).join("\n")}`
+    : "";
+  return `You are a Chinese language expert. Return ONLY valid JSON.
+
+Generate ${count} new example sentence(s) that naturally use the Chinese word "${chinese}" (pinyin: ${pinyin}, meaning: ${meaning}). Vary the context, register, and grammar.${avoid}
+
+JSON format:
+{"examples":[{"chinese":"...","pinyin":"...","english":"...","words":[{"english":"short gloss","chinese":"word","pinyin_marks":"...","meaning":"...","topic":"...","hsk_level":1,"tags":["..."],"characters":[{"char":"X","pinyin":"...","tone":1,"meaning":"...","radical":"R","radical_pinyin":"...","radical_meaning":"...","radical_strokes":3,"total_strokes":8}]}]}]}
+Rules: every meaningful Chinese word in the sentence (multi-char compounds like 早上 or 朋友 stay as one word; skip punctuation). For each word give a short english gloss (1-3 words), pinyin_marks, meaning, topic, hsk_level, 1-2 tags, and full characters breakdown with radical data. hsk_level: 1-9 based on difficulty. Keep strings short. JSON only.`;
+}
+
+function extractJson(text: string): unknown {
+  const cleaned = text.replace(/```json|```/g, "").trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const firstBrace = cleaned.indexOf("{");
+    const lastBrace = cleaned.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      try {
+        return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}
 
 const listInputSchema = z.object({
   topic: z.string().optional(),
@@ -154,5 +201,137 @@ export const vocabRouter = createTRPCRouter({
         .set({ isStarred: sql`NOT ${vocabWords.isStarred}` })
         .where(eq(vocabWords.id, input.id));
       return { ok: true };
+    }),
+
+  generateExamples: publicProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        count: z.number().int().min(1).max(3).default(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [word] = await ctx.db
+        .select({
+          id: vocabWords.id,
+          chinese: vocabWords.chinese,
+          pinyin: vocabWords.pinyin,
+          meaning: vocabWords.meaning,
+          examples: vocabWords.examples,
+        })
+        .from(vocabWords)
+        .where(eq(vocabWords.id, input.id))
+        .limit(1);
+
+      if (!word) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Word not found" });
+      }
+
+      const existing = (word.examples ?? []) as ExampleSentenceInput[];
+      const anthropic = getAnthropic();
+
+      let response;
+      try {
+        response = await anthropic.messages.create({
+          model: TRANSLATION_MODEL,
+          max_tokens: 4096,
+          messages: [
+            {
+              role: "user",
+              content: buildExamplesPrompt(
+                word.chinese,
+                word.pinyin,
+                word.meaning ?? "",
+                existing.map((e) => e.chinese),
+                input.count,
+              ),
+            },
+          ],
+        });
+      } catch (err) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Anthropic request failed: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        });
+      }
+
+      const text = response.content
+        .map((block) => (block.type === "text" ? block.text : ""))
+        .join("");
+
+      const raw = extractJson(text);
+      if (!raw) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Could not parse model output: ${text.slice(0, 200)}`,
+        });
+      }
+
+      const parsed = generateExamplesResponseSchema.safeParse(raw);
+      if (!parsed.success) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Model returned invalid shape: ${parsed.error.message}`,
+        });
+      }
+
+      const seen = new Set(existing.map((e) => e.chinese));
+      const fresh = parsed.data.examples.filter((e) => !seen.has(e.chinese));
+      if (fresh.length === 0) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Model returned only duplicate examples, try again",
+        });
+      }
+
+      const next = [...existing, ...fresh];
+
+      await ctx.db
+        .update(vocabWords)
+        .set({ examples: next, updatedAt: new Date() })
+        .where(eq(vocabWords.id, input.id));
+
+      const innerSeen = new Set<string>();
+      let addedWords = 0;
+      for (const ex of fresh) {
+        for (const w of ex.words) {
+          if (!w.english || !w.chinese) continue;
+          const key = `${w.chinese}|${w.pinyin_marks}`;
+          if (innerSeen.has(key)) continue;
+          innerSeen.add(key);
+
+          const dup = await ctx.db
+            .select({ id: vocabWords.id })
+            .from(vocabWords)
+            .where(
+              and(
+                eq(vocabWords.chinese, w.chinese),
+                eq(vocabWords.pinyin, w.pinyin_marks),
+              ),
+            )
+            .limit(1);
+
+          if (dup.length > 0) continue;
+
+          await ctx.db.insert(vocabWords).values({
+            english: w.english,
+            chinese: w.chinese,
+            pinyin: w.pinyin_marks,
+            meaning: w.meaning,
+            literalMeaning: w.literal_meaning,
+            context: w.context,
+            topic: w.topic,
+            hskLevel: w.hsk_level ?? null,
+            tags: w.tags,
+            characters: w.characters,
+            examples: [],
+          });
+          addedWords++;
+        }
+      }
+
+      return { added: fresh, addedWords, examples: next };
     }),
 });
