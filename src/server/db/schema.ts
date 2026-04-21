@@ -38,6 +38,30 @@ export const vocabWords = pgTable(
     lastReviewed: timestamp("last_reviewed", { withTimezone: true }),
     nextReview: timestamp("next_review", { withTimezone: true }).defaultNow(),
 
+    meaningReviewed: integer("meaning_reviewed").notNull().default(0),
+    meaningCorrect: integer("meaning_correct").notNull().default(0),
+    meaningLastReviewed: timestamp("meaning_last_reviewed", {
+      withTimezone: true,
+    }),
+
+    pinyinReviewed: integer("pinyin_reviewed").notNull().default(0),
+    pinyinCorrect: integer("pinyin_correct").notNull().default(0),
+    pinyinLastReviewed: timestamp("pinyin_last_reviewed", {
+      withTimezone: true,
+    }),
+
+    toneReviewed: integer("tone_reviewed").notNull().default(0),
+    toneCorrect: integer("tone_correct").notNull().default(0),
+    toneLastReviewed: timestamp("tone_last_reviewed", {
+      withTimezone: true,
+    }),
+
+    writingReviewed: integer("writing_reviewed").notNull().default(0),
+    writingCorrect: integer("writing_correct").notNull().default(0),
+    writingLastReviewed: timestamp("writing_last_reviewed", {
+      withTimezone: true,
+    }),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
     isStarred: boolean("is_starred").default(false),
@@ -54,6 +78,9 @@ export const vocabWords = pgTable(
   ],
 );
 
+export const TEST_TYPES = ["meaning", "pinyin", "tone", "writing"] as const;
+export type TestType = (typeof TEST_TYPES)[number];
+
 export const reviewLog = pgTable(
   "review_log",
   {
@@ -64,9 +91,16 @@ export const reviewLog = pgTable(
     wasCorrect: boolean("was_correct").notNull(),
     responseTimeMs: integer("response_time_ms"),
     reviewMode: text("review_mode").default("flashcard"),
+    testType: text("test_type"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
-  (t) => [index("idx_review_word").on(t.wordId)],
+  (t) => [
+    index("idx_review_word").on(t.wordId),
+    check(
+      "test_type_valid",
+      sql`${t.testType} IS NULL OR ${t.testType} IN ('meaning','pinyin','tone','writing')`,
+    ),
+  ],
 );
 
 export type VocabWord = typeof vocabWords.$inferSelect;

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { MasteryDimensionsBar } from "~/components/library/mastery-dimensions-bar";
 import { ChineseText } from "~/components/shared/chinese-text";
 import { TagPill } from "~/components/shared/tag-pill";
 import { WordDetailView } from "~/components/shared/word-detail-view";
@@ -28,7 +29,6 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { Skeleton } from "~/components/ui/skeleton";
-import { cn } from "~/lib/utils";
 import type { VocabWord } from "~/server/db/schema";
 import type { TranslationOption } from "~/server/lib/schemas/translation";
 import { api } from "~/trpc/react";
@@ -235,13 +235,37 @@ export function LibraryPanel() {
                   </div>
                 </div>
               </div>
-              <WordDetailView word={vocabToWord(selected)} wordId={selected.id} />
+              <WordDetailView
+                word={vocabToWord(selected)}
+                wordId={selected.id}
+                stats={{
+                  meaning: {
+                    reviewed: selected.meaningReviewed,
+                    correct: selected.meaningCorrect,
+                    lastReviewed: selected.meaningLastReviewed,
+                  },
+                  pinyin: {
+                    reviewed: selected.pinyinReviewed,
+                    correct: selected.pinyinCorrect,
+                    lastReviewed: selected.pinyinLastReviewed,
+                  },
+                  tone: {
+                    reviewed: selected.toneReviewed,
+                    correct: selected.toneCorrect,
+                    lastReviewed: selected.toneLastReviewed,
+                  },
+                  writing: {
+                    reviewed: selected.writingReviewed,
+                    correct: selected.writingCorrect,
+                    lastReviewed: selected.writingLastReviewed,
+                  },
+                }}
+              />
             </DialogContent>
           )}
         </Dialog>
 
         {items.map((w) => {
-          const m = w.mastery ?? 0;
           const created = w.createdAt
             ? new Date(w.createdAt).toLocaleDateString("en-GB", {
                 day: "numeric",
@@ -290,9 +314,26 @@ export function LibraryPanel() {
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                <div className="bg-border h-1.5 w-[60px] overflow-hidden rounded-[3px]">
-                  <div className={cn("mastery-fill", `m${m}`)} />
-                </div>
+                <MasteryDimensionsBar
+                  stats={{
+                    meaning: {
+                      reviewed: w.meaningReviewed,
+                      correct: w.meaningCorrect,
+                    },
+                    pinyin: {
+                      reviewed: w.pinyinReviewed,
+                      correct: w.pinyinCorrect,
+                    },
+                    tone: {
+                      reviewed: w.toneReviewed,
+                      correct: w.toneCorrect,
+                    },
+                    writing: {
+                      reviewed: w.writingReviewed,
+                      correct: w.writingCorrect,
+                    },
+                  }}
+                />
                 <div className="text-text3 text-[10px]">{created}</div>
                 <Button
                   type="button"

@@ -17,16 +17,37 @@ import {
 } from "~/components/ui/card";
 import { Empty, EmptyDescription } from "~/components/ui/empty";
 import { Separator } from "~/components/ui/separator";
+import {
+  DIM_LABEL,
+  TEST_TYPES,
+  accuracyPercent,
+  bucketColorClass,
+  dimensionBucket,
+  formatRelativeTime,
+  type TestType,
+} from "~/lib/dimension-stats";
 import { cn } from "~/lib/utils";
 import type { TranslationOption } from "~/server/lib/schemas/translation";
 import { api } from "~/trpc/react";
 
+export type DimensionStatsWithTime = Record<
+  TestType,
+  {
+    reviewed: number;
+    correct: number;
+    lastReviewed: Date | string | null;
+  }
+>;
+
 type Props = {
   word: TranslationOption;
   wordId?: string;
+  stats?: DimensionStatsWithTime;
 };
 
-export function WordDetailView({ word, wordId }: Props) {
+const NA_DIMENSIONS: TestType[] = ["tone", "writing"];
+
+export function WordDetailView({ word, wordId, stats }: Props) {
   const [charIdx, setCharIdx] = useState(0);
   const utils = api.useUtils();
 
@@ -133,6 +154,14 @@ export function WordDetailView({ word, wordId }: Props) {
       </div>
 
       <div className="flex flex-col gap-[18px]">
+        {stats && (
+          <Panel title="Performance" tone="jade">
+            <PerformanceRows
+              stats={stats}
+              hasCharacters={word.characters.length > 0}
+            />
+          </Panel>
+        )}
         <Panel title="Pronunciation" tone="blue">
           <div className="py-4 text-center">
             <ChineseText
@@ -215,6 +244,61 @@ export function WordDetailView({ word, wordId }: Props) {
           </div>
         </Panel>
       </div>
+    </div>
+  );
+}
+
+function PerformanceRows({
+  stats,
+  hasCharacters,
+}: {
+  stats: DimensionStatsWithTime;
+  hasCharacters: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-2.5">
+      {TEST_TYPES.map((dim) => {
+        const stat = stats[dim];
+        const isNA = !hasCharacters && NA_DIMENSIONS.includes(dim);
+        const bucket = dimensionBucket(stat);
+        const pct = accuracyPercent(stat);
+        return (
+          <div
+            key={dim}
+            className="bg-background flex items-center gap-3 rounded-[9px] px-3 py-2"
+          >
+            <div className="min-w-[68px] text-[11px] font-semibold uppercase tracking-wider">
+              {DIM_LABEL[dim]}
+            </div>
+            <div className="bg-border h-1.5 flex-1 overflow-hidden rounded-[3px]">
+              <div
+                className={cn(
+                  "h-full transition-all",
+                  isNA ? "bg-border" : bucketColorClass(bucket),
+                )}
+                style={{
+                  width: isNA ? "0%" : pct === null ? "0%" : `${pct}%`,
+                }}
+              />
+            </div>
+            <div className="text-text2 min-w-[90px] text-right text-[11px] tabular-nums">
+              {isNA ? (
+                <em className="text-text3">n/a</em>
+              ) : pct === null ? (
+                <span className="text-text3">untested</span>
+              ) : (
+                <span>
+                  {stat.correct}/{stat.reviewed}{" "}
+                  <span className="text-text3">({pct}%)</span>
+                </span>
+              )}
+            </div>
+            <div className="text-text3 min-w-[72px] text-right text-[10px]">
+              {isNA ? "" : formatRelativeTime(stat.lastReviewed)}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

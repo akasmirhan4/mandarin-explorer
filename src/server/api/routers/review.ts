@@ -1,9 +1,57 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, type AnyColumn } from "drizzle-orm";
 import { z } from "zod";
 
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
-import { reviewLog, vocabWords } from "~/server/db/schema";
+import {
+  reviewLog,
+  TEST_TYPES,
+  vocabWords,
+  type TestType,
+} from "~/server/db/schema";
 import { applyReview } from "~/server/lib/srs";
+
+type DimMapping = {
+  reviewedCol: AnyColumn;
+  correctCol: AnyColumn;
+  reviewedKey: "meaningReviewed" | "pinyinReviewed" | "toneReviewed" | "writingReviewed";
+  correctKey: "meaningCorrect" | "pinyinCorrect" | "toneCorrect" | "writingCorrect";
+  lastReviewedKey:
+    | "meaningLastReviewed"
+    | "pinyinLastReviewed"
+    | "toneLastReviewed"
+    | "writingLastReviewed";
+};
+
+const DIM_COLUMNS: Record<TestType, DimMapping> = {
+  meaning: {
+    reviewedCol: vocabWords.meaningReviewed,
+    correctCol: vocabWords.meaningCorrect,
+    reviewedKey: "meaningReviewed",
+    correctKey: "meaningCorrect",
+    lastReviewedKey: "meaningLastReviewed",
+  },
+  pinyin: {
+    reviewedCol: vocabWords.pinyinReviewed,
+    correctCol: vocabWords.pinyinCorrect,
+    reviewedKey: "pinyinReviewed",
+    correctKey: "pinyinCorrect",
+    lastReviewedKey: "pinyinLastReviewed",
+  },
+  tone: {
+    reviewedCol: vocabWords.toneReviewed,
+    correctCol: vocabWords.toneCorrect,
+    reviewedKey: "toneReviewed",
+    correctKey: "toneCorrect",
+    lastReviewedKey: "toneLastReviewed",
+  },
+  writing: {
+    reviewedCol: vocabWords.writingReviewed,
+    correctCol: vocabWords.writingCorrect,
+    reviewedKey: "writingReviewed",
+    correctKey: "writingCorrect",
+    lastReviewedKey: "writingLastReviewed",
+  },
+};
 
 export const reviewRouter = createTRPCRouter({
   submitReview: publicProcedure
@@ -11,6 +59,7 @@ export const reviewRouter = createTRPCRouter({
       z.object({
         wordId: z.string().uuid(),
         response: z.enum(["wrong", "hard", "easy"]),
+        testType: z.enum(TEST_TYPES).optional(),
         responseTimeMs: z.number().int().nonnegative().optional(),
       }),
     )
@@ -30,6 +79,18 @@ export const reviewRouter = createTRPCRouter({
         word.mastery ?? 0,
         input.response,
       );
+      const now = new Date();
+
+      const perDim = input.testType
+        ? (() => {
+            const m = DIM_COLUMNS[input.testType];
+            return {
+              [m.reviewedKey]: sql`${m.reviewedCol} + 1`,
+              [m.correctKey]: sql`${m.correctCol} + ${wasCorrect ? 1 : 0}`,
+              [m.lastReviewedKey]: now,
+            };
+          })()
+        : {};
 
       await ctx.db.transaction(async (tx) => {
         await tx
@@ -40,8 +101,9 @@ export const reviewRouter = createTRPCRouter({
             timesCorrect: sql`COALESCE(${vocabWords.timesCorrect}, 0) + ${
               wasCorrect ? 1 : 0
             }`,
-            lastReviewed: new Date(),
+            lastReviewed: now,
             nextReview,
+            ...perDim,
           })
           .where(eq(vocabWords.id, input.wordId));
 
@@ -50,6 +112,7 @@ export const reviewRouter = createTRPCRouter({
           wasCorrect,
           responseTimeMs: input.responseTimeMs,
           reviewMode: "flashcard",
+          testType: input.testType ?? null,
         });
       });
 

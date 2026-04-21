@@ -191,7 +191,7 @@ export function FlashcardsPanel() {
     setTotal((t) => t + 1);
     if (response !== "wrong") setCorrect((c) => c + 1);
     submitReview.mutate(
-      { wordId: currentWord.id, response },
+      { wordId: currentWord.id, response, testType: mode },
       {
         onSuccess: () => {
           void utils.vocab.list.invalidate();
