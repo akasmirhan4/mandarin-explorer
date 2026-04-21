@@ -4,8 +4,10 @@ import { Loader2, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { AnnotatedExample } from "~/components/shared/annotated-example";
 import { ChineseText } from "~/components/shared/chinese-text";
 import { ToneBadge } from "~/components/shared/tone-badge";
+import { useSpeechSynthesis } from "~/lib/hooks/use-speech-synthesis";
 import { StrokeOrderViewer } from "~/components/translate/stroke-order-viewer";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -50,6 +52,7 @@ const NA_DIMENSIONS: TestType[] = ["tone", "writing"];
 export function WordDetailView({ word, wordId, stats }: Props) {
   const [charIdx, setCharIdx] = useState(0);
   const utils = api.useUtils();
+  const { speak } = useSpeechSynthesis();
 
   const generateExamples = api.vocab.generateExamples.useMutation({
     onSuccess: (data) => {
@@ -136,11 +139,14 @@ export function WordDetailView({ word, wordId, stats }: Props) {
                 key={i}
                 className="bg-background rounded-[9px] border-l-[3px] border-[var(--gold)] px-3.5 py-3"
               >
-                <ChineseText as="div" className="mb-0.5 text-base font-bold">
-                  {e.chinese}
-                </ChineseText>
-                <div className="text-red mb-px text-xs">{e.pinyin}</div>
-                <div className="text-text2 text-xs">{e.english}</div>
+                <AnnotatedExample
+                  chinese={e.chinese}
+                  pinyin={e.pinyin}
+                  english={e.english}
+                  words={e.words}
+                  parentCharacters={word.characters}
+                  onSpeakChinese={speak}
+                />
               </div>
             ))}
             {isGenerating && (
