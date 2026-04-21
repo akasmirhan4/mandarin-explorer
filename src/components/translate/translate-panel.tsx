@@ -116,28 +116,31 @@ export function TranslatePanel() {
   return (
     <div>
       <div className="mb-7">
-        <div
-          className={cn(
-            "bg-card border-border flex overflow-hidden rounded-2xl border-2 transition-colors focus-within:border-[var(--red)]",
-          )}
-          style={{ boxShadow: "var(--shadow-lg-app)" }}
-        >
-          <Input
-            type="text"
-            value={word}
-            onChange={(e) => setWord(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") doSearch();
-            }}
-            placeholder="Type an English word..."
-            className="text-ink placeholder:text-text3 flex-1 rounded-none border-0 bg-transparent px-5 py-4 text-base font-medium shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-            autoComplete="off"
-          />
+        <div className="flex items-stretch gap-3">
+          <div
+            className={cn(
+              "bg-card border-border focus-within:border-red flex flex-1 overflow-hidden rounded-2xl border-2 transition-colors",
+            )}
+            style={{ boxShadow: "var(--shadow-lg-app)" }}
+          >
+            <Input
+              type="text"
+              value={word}
+              onChange={(e) => setWord(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") doSearch();
+              }}
+              placeholder="Type an English word..."
+              className="text-ink placeholder:text-text3 h-full flex-1 rounded-none border-0 bg-transparent px-5 py-0 text-base font-medium shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              autoComplete="off"
+            />
+          </div>
           <Button
             type="button"
             onClick={() => doSearch()}
             disabled={translate.isPending || !word.trim()}
-            className="bg-red hover:bg-red/90 disabled:bg-mist rounded-none px-6 py-4 text-sm font-semibold text-white"
+            className="bg-red hover:bg-red/90 disabled:bg-mist h-12 rounded-2xl px-6 py-0 text-sm font-semibold text-white"
+            style={{ boxShadow: "var(--shadow-lg-app)" }}
           >
             {translate.isPending ? "Translating…" : "Translate"}
           </Button>

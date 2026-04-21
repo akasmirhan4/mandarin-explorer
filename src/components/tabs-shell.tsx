@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import { FlashcardsPanel } from "~/components/flashcards/flashcards-panel";
 import { LibraryPanel } from "~/components/library/library-panel";
@@ -16,6 +16,8 @@ import { api } from "~/trpc/react";
 
 type TabId = "translate" | "vocab" | "flashcards";
 
+type IndicatorRect = { left: number; width: number };
+
 export function TabsShell() {
   const [active, setActive] = useState<TabId>("translate");
   const { data: vocabCount } = api.vocab.count.useQuery(undefined, {
@@ -28,6 +30,29 @@ export function TabsShell() {
     { id: "flashcards", label: "Flashcards" },
   ];
 
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const triggerRefs = useRef<Map<TabId, HTMLButtonElement>>(new Map());
+  const [indicator, setIndicator] = useState<IndicatorRect | null>(null);
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  useLayoutEffect(() => {
+    const trigger = triggerRefs.current.get(active);
+    const list = listRef.current;
+    if (!trigger || !list) return;
+    const listRect = list.getBoundingClientRect();
+    const triggerRect = trigger.getBoundingClientRect();
+    setIndicator({
+      left: triggerRect.left - listRect.left,
+      width: triggerRect.width,
+    });
+  }, [active, vocabCount]);
+
+  useLayoutEffect(() => {
+    if (!indicator || hasAnimated) return;
+    const id = requestAnimationFrame(() => setHasAnimated(true));
+    return () => cancelAnimationFrame(id);
+  }, [indicator, hasAnimated]);
+
   return (
     <Tabs
       value={active}
@@ -35,14 +60,33 @@ export function TabsShell() {
       className="flex-col gap-0"
     >
       <TabsList
-        className="bg-card border-border mb-7 flex h-auto w-full gap-1 rounded-xl border p-1"
+        ref={listRef}
+        className="bg-card border-border mb-7 relative flex h-auto w-full gap-1 rounded-xl border p-1"
         style={{ boxShadow: "var(--shadow-sm-app)" }}
       >
+        {indicator && (
+          <div
+            aria-hidden
+            className="bg-ink pointer-events-none absolute top-1 bottom-1 rounded-lg"
+            style={{
+              left: indicator.left,
+              width: indicator.width,
+              boxShadow: "var(--shadow-sm-app)",
+              transition: hasAnimated
+                ? "left 300ms cubic-bezier(0.4, 0, 0.2, 1), width 300ms cubic-bezier(0.4, 0, 0.2, 1)"
+                : "none",
+            }}
+          />
+        )}
         {tabs.map((t) => (
           <TabsTrigger
             key={t.id}
             value={t.id}
-            className="group/tab text-text2 hover:text-ink data-active:bg-ink data-active:text-white h-auto flex-1 cursor-pointer rounded-[10px] border-transparent bg-transparent px-4 py-3 text-center text-sm font-semibold transition-all data-active:shadow-(--shadow-sm-app)"
+            ref={(el) => {
+              if (el) triggerRefs.current.set(t.id, el);
+              else triggerRefs.current.delete(t.id);
+            }}
+            className="group/tab text-text2 hover:text-ink data-active:bg-transparent data-active:text-white group-data-[variant=default]/tabs-list:data-active:shadow-none relative z-10 h-auto flex-1 cursor-pointer rounded-lg border-transparent bg-transparent px-4 py-3 text-center text-sm font-semibold transition-colors"
           >
             {t.label}
             {t.count !== undefined && (
