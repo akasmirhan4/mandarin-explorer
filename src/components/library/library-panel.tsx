@@ -201,66 +201,68 @@ export function LibraryPanel() {
           }}
         >
           {selected && (
-            <DialogContent className="max-h-[90vh] w-full max-w-3xl overflow-y-auto sm:max-w-3xl">
+            <DialogContent className="flex max-h-[90vh] w-full max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
               <DialogTitle className="sr-only">
                 {selected.chinese} — {selected.english}
               </DialogTitle>
-              <div className="mb-5 flex items-start gap-5">
-                <ChineseText
-                  as="div"
-                  className="min-w-[72px] text-center text-[44px] leading-none font-black"
-                >
-                  {selected.chinese}
-                </ChineseText>
-                <div className="flex flex-1 flex-col gap-1">
-                  <div className="text-red text-lg font-semibold">
-                    {selected.pinyin}
-                  </div>
-                  <div className="text-text2 text-sm">
-                    {selected.english}
-                    {selected.meaning ? ` — ${selected.meaning}` : ""}
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-1">
-                    {selected.topic && selected.topic !== "general" && (
-                      <TagPill variant="topic">{selected.topic}</TagPill>
-                    )}
-                    {selected.hskLevel ? (
-                      <TagPill variant="hsk">HSK {selected.hskLevel}</TagPill>
-                    ) : null}
-                    {(selected.tags ?? []).map((t, i) => (
-                      <TagPill key={i} variant="custom">
-                        {t}
-                      </TagPill>
-                    ))}
+              <div className="scroll-soft min-h-0 flex-1 overflow-y-auto px-5 py-5">
+                <div className="mb-5 flex items-start gap-5 pr-8">
+                  <ChineseText
+                    as="div"
+                    className="min-w-18 text-center text-[44px] leading-none font-black"
+                  >
+                    {selected.chinese}
+                  </ChineseText>
+                  <div className="flex flex-1 flex-col gap-1">
+                    <div className="text-red text-lg font-semibold">
+                      {selected.pinyin}
+                    </div>
+                    <div className="text-text2 text-sm">
+                      {selected.english}
+                      {selected.meaning ? ` — ${selected.meaning}` : ""}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-1">
+                      {selected.topic && selected.topic !== "general" && (
+                        <TagPill variant="topic">{selected.topic}</TagPill>
+                      )}
+                      {selected.hskLevel ? (
+                        <TagPill variant="hsk">HSK {selected.hskLevel}</TagPill>
+                      ) : null}
+                      {(selected.tags ?? []).map((t, i) => (
+                        <TagPill key={i} variant="custom">
+                          {t}
+                        </TagPill>
+                      ))}
+                    </div>
                   </div>
                 </div>
+                <WordDetailView
+                  word={vocabToWord(selected)}
+                  wordId={selected.id}
+                  stats={{
+                    meaning: {
+                      reviewed: selected.meaningReviewed,
+                      correct: selected.meaningCorrect,
+                      lastReviewed: selected.meaningLastReviewed,
+                    },
+                    pinyin: {
+                      reviewed: selected.pinyinReviewed,
+                      correct: selected.pinyinCorrect,
+                      lastReviewed: selected.pinyinLastReviewed,
+                    },
+                    tone: {
+                      reviewed: selected.toneReviewed,
+                      correct: selected.toneCorrect,
+                      lastReviewed: selected.toneLastReviewed,
+                    },
+                    writing: {
+                      reviewed: selected.writingReviewed,
+                      correct: selected.writingCorrect,
+                      lastReviewed: selected.writingLastReviewed,
+                    },
+                  }}
+                />
               </div>
-              <WordDetailView
-                word={vocabToWord(selected)}
-                wordId={selected.id}
-                stats={{
-                  meaning: {
-                    reviewed: selected.meaningReviewed,
-                    correct: selected.meaningCorrect,
-                    lastReviewed: selected.meaningLastReviewed,
-                  },
-                  pinyin: {
-                    reviewed: selected.pinyinReviewed,
-                    correct: selected.pinyinCorrect,
-                    lastReviewed: selected.pinyinLastReviewed,
-                  },
-                  tone: {
-                    reviewed: selected.toneReviewed,
-                    correct: selected.toneCorrect,
-                    lastReviewed: selected.toneLastReviewed,
-                  },
-                  writing: {
-                    reviewed: selected.writingReviewed,
-                    correct: selected.writingCorrect,
-                    lastReviewed: selected.writingLastReviewed,
-                  },
-                }}
-              />
             </DialogContent>
           )}
         </Dialog>
