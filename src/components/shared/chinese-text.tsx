@@ -34,7 +34,8 @@ export function ChineseText({
       )}
       onClick={
         clickable
-          ? () => {
+          ? (e) => {
+              e.stopPropagation();
               setPulsing(true);
               setTimeout(() => setPulsing(false), 500);
               speak(children);
