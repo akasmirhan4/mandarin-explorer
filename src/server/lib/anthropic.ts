@@ -10,7 +10,7 @@ export function getAnthropic(): Anthropic {
   if (!client) {
     client = new Anthropic({
       apiKey: env.ANTHROPIC_API_KEY,
-      timeout: 30_000,
+      timeout: 120_000,
     });
   }
   return client;
