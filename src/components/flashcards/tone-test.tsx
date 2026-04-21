@@ -87,6 +87,25 @@ export function ToneTest({ word, onSubmit }: Props) {
     onSubmit(gradeTone(numericPicks, word), numericPicks);
   };
 
+  const submitRef = useRef(submit);
+  useEffect(() => {
+    submitRef.current = submit;
+  });
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      e.preventDefault();
+      submitRef.current();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   return (
     <div className="space-y-4">
       <Card className="bg-card rounded-[18px] p-0 shadow-(--shadow-md-app) ring-0">
@@ -184,6 +203,9 @@ export function ToneTest({ word, onSubmit }: Props) {
           className="bg-red hover:bg-red/90 flex-2 rounded-[12px] py-3 text-sm font-semibold text-white disabled:opacity-50"
         >
           Check
+          <kbd className="ml-1 inline-flex items-center rounded bg-white/20 px-1.5 py-0.5 font-mono text-[10px] font-bold ring-1 ring-white/30">
+            Enter
+          </kbd>
         </Button>
       </div>
     </div>

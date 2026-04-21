@@ -78,3 +78,10 @@ export function gradeTone(
   if (matches > 0) return "close";
   return "wrong";
 }
+
+export function gradeWriting(totalMistakes: number, totalStrokes: number): Grade {
+  if (totalMistakes === 0) return "exact";
+  const closeThreshold = Math.max(2, Math.floor(totalStrokes * 0.2));
+  if (totalMistakes <= closeThreshold) return "close";
+  return "wrong";
+}

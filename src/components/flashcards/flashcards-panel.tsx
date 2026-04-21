@@ -8,6 +8,7 @@ import { MeaningTest } from "~/components/flashcards/meaning-test";
 import { PinyinTest } from "~/components/flashcards/pinyin-test";
 import { TestFeedback } from "~/components/flashcards/test-feedback";
 import { ToneTest } from "~/components/flashcards/tone-test";
+import { WritingTest } from "~/components/flashcards/writing-test";
 import { ChineseText } from "~/components/shared/chinese-text";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
@@ -26,17 +27,23 @@ import { api } from "~/trpc/react";
 import type { CharacterData } from "~/server/db/types";
 import type { VocabWord } from "~/server/db/schema";
 
-type TestMode = "meaning" | "pinyin" | "tone";
+type TestMode = "meaning" | "pinyin" | "tone" | "writing";
 
 type Submitted =
   | { mode: "meaning"; grade: Grade; userAnswer: string }
   | { mode: "pinyin"; grade: Grade; userAnswer: string }
-  | { mode: "tone"; grade: Grade; picks: number[] };
+  | { mode: "tone"; grade: Grade; picks: number[] }
+  | {
+      mode: "writing";
+      grade: Grade;
+      totalMistakes: number;
+      charsAttempted: number;
+    };
 
 function pickTestMode(word: VocabWord): TestMode {
   const hasChars = (word.characters ?? []).length > 0;
   const pool: TestMode[] = hasChars
-    ? ["meaning", "pinyin", "tone"]
+    ? ["meaning", "pinyin", "tone", "writing"]
     : ["meaning", "pinyin"];
   return pool[Math.floor(Math.random() * pool.length)]!;
 }
@@ -195,7 +202,8 @@ export function FlashcardsPanel() {
   };
 
   const handleTextSubmit = (grade: Grade, userAnswer: string) => {
-    if (!currentWord || mode === "tone") return;
+    if (!currentWord) return;
+    if (mode !== "meaning" && mode !== "pinyin") return;
     recordReview(grade);
     setSubmitted({ mode, grade, userAnswer });
   };
@@ -204,6 +212,16 @@ export function FlashcardsPanel() {
     if (!currentWord) return;
     recordReview(grade);
     setSubmitted({ mode: "tone", grade, picks });
+  };
+
+  const handleWritingSubmit = (
+    grade: Grade,
+    totalMistakes: number,
+    charsAttempted: number,
+  ) => {
+    if (!currentWord) return;
+    recordReview(grade);
+    setSubmitted({ mode: "writing", grade, totalMistakes, charsAttempted });
   };
 
   const handleNext = () => {
@@ -305,20 +323,53 @@ export function FlashcardsPanel() {
         />
       );
     }
-    const chars = currentWord.characters ?? [];
-    const correctTones = chars.map((c) => normalizeTone(c.tone));
+    if (submitted.mode === "tone") {
+      const toneChars = currentWord.characters ?? [];
+      const correctTones = toneChars.map((c) => normalizeTone(c.tone));
+      return (
+        <TestFeedback
+          grade={submitted.grade}
+          userAnswer={
+            <TonePicksRow
+              chars={toneChars}
+              picks={submitted.picks}
+              correctTones={correctTones}
+              showWrong
+            />
+          }
+          correctAnswer={<ToneCorrectRow chars={toneChars} />}
+          onNext={handleNext}
+        />
+      );
+    }
+    const writingChars = currentWord.characters ?? [];
+    const userAnswer =
+      submitted.grade === "gave_up" ? (
+        <em className="text-text3">(skipped)</em>
+      ) : (
+        <span>
+          Drew {submitted.charsAttempted} character
+          {submitted.charsAttempted === 1 ? "" : "s"} · {submitted.totalMistakes}{" "}
+          mistake{submitted.totalMistakes === 1 ? "" : "s"}
+        </span>
+      );
     return (
       <TestFeedback
         grade={submitted.grade}
-        userAnswer={
-          <TonePicksRow
-            chars={chars}
-            picks={submitted.picks}
-            correctTones={correctTones}
-            showWrong
-          />
+        userAnswer={userAnswer}
+        correctAnswer={
+          <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <ChineseText as="span" className="text-lg font-bold">
+              {currentWord.chinese}
+            </ChineseText>
+            <span className="font-mono">
+              {formatCanonicalPinyinForDisplay(currentWord)}
+            </span>
+            {writingChars.length > 0 && (
+              <ToneCorrectRow chars={writingChars} />
+            )}
+          </span>
         }
-        correctAnswer={<ToneCorrectRow chars={chars} />}
         onNext={handleNext}
       />
     );
@@ -354,8 +405,10 @@ export function FlashcardsPanel() {
           <MeaningTest word={currentWord} onSubmit={handleTextSubmit} />
         ) : mode === "pinyin" ? (
           <PinyinTest word={currentWord} onSubmit={handleTextSubmit} />
-        ) : (
+        ) : mode === "tone" ? (
           <ToneTest word={currentWord} onSubmit={handleToneSubmit} />
+        ) : (
+          <WritingTest word={currentWord} onSubmit={handleWritingSubmit} />
         )
       ) : null}
     </div>
