@@ -42,7 +42,12 @@ const TOPICS = [
   "education",
 ];
 
-const TONES = ["1", "2", "3", "4"];
+const TONES: { value: string; label: string }[] = [
+  { value: "1", label: "1st — Flat (ā)" },
+  { value: "2", label: "2nd — Rising (á)" },
+  { value: "3", label: "3rd — Falling-Rising (ǎ)" },
+  { value: "4", label: "4th — Falling (à)" },
+];
 
 type MasteryBucket = "new" | "learning" | "reviewing" | "mastered";
 
@@ -92,7 +97,7 @@ export function LibraryPanel() {
           value={tone}
           onChange={setTone}
           placeholder="All Tones"
-          options={TONES.map((t) => ({ value: t, label: `${t}${ord(t)} Tone` }))}
+          options={TONES}
         />
         <FilterSelect
           value={masteryBucket}
@@ -207,8 +212,14 @@ function FilterSelect({
       value={value || "__all__"}
       onValueChange={(v) => onChange(!v || v === "__all__" ? "" : v)}
     >
-      <SelectTrigger className="border-border focus:border-red data-[placeholder]:text-ink w-auto min-w-[140px] rounded-[10px] border-2 bg-white px-3 py-2.5 text-[13px] shadow-none focus:ring-0 focus:ring-offset-0">
-        <SelectValue placeholder={placeholder} />
+      <SelectTrigger className="w-auto min-w-36">
+        <SelectValue placeholder={placeholder}>
+          {(v: string) =>
+            !v || v === "__all__"
+              ? placeholder
+              : (options.find((o) => o.value === v)?.label ?? v)
+          }
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="__all__">{placeholder}</SelectItem>
