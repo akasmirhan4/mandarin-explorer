@@ -15,6 +15,35 @@ const generateExamplesResponseSchema = z.object({
   examples: z.array(exampleSentenceSchema).min(1),
 });
 
+const reviewMeaningResponseSchema = z.object({
+  is_valid: z.boolean(),
+  feedback: z.string(),
+  suggested_english: z.string(),
+  suggested_meaning: z.string(),
+});
+
+function buildReviewMeaningPrompt(
+  chinese: string,
+  pinyin: string,
+  english: string,
+  meaning: string,
+  userAnswer: string,
+): string {
+  return `You are a Chinese-English translation expert. Return ONLY valid JSON.
+
+Chinese word: "${chinese}" (pinyin: ${pinyin})
+Current stored english: "${english}"
+Current stored meaning: "${meaning}"
+User's answer: "${userAnswer}"
+
+Decide whether the user's answer is a valid English translation of the Chinese word. Accept close synonyms, informal variants, and partial but correct renderings. Reject unrelated or clearly wrong answers.
+
+If the answer is valid AND captures a nuance or synonym not already reflected in the stored english/meaning, propose an updated english and meaning that incorporates it (keep it concise — english is a short gloss, meaning is a slightly richer definition). Otherwise return the existing english and meaning unchanged.
+
+JSON format:
+{"is_valid": true|false, "feedback": "1-2 sentence explanation for the user", "suggested_english": "...", "suggested_meaning": "..."}`;
+}
+
 function buildExamplesPrompt(
   chinese: string,
   pinyin: string,
@@ -201,6 +230,108 @@ export const vocabRouter = createTRPCRouter({
         .set({ isStarred: sql`NOT ${vocabWords.isStarred}` })
         .where(eq(vocabWords.id, input.id));
       return { ok: true };
+    }),
+
+  updateDefinition: publicProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        english: z.string().min(1),
+        meaning: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(vocabWords)
+        .set({
+          english: input.english,
+          meaning: input.meaning,
+          updatedAt: new Date(),
+        })
+        .where(eq(vocabWords.id, input.id));
+      return { ok: true };
+    }),
+
+  reviewMeaning: publicProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        userAnswer: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [word] = await ctx.db
+        .select({
+          chinese: vocabWords.chinese,
+          pinyin: vocabWords.pinyin,
+          english: vocabWords.english,
+          meaning: vocabWords.meaning,
+        })
+        .from(vocabWords)
+        .where(eq(vocabWords.id, input.id))
+        .limit(1);
+
+      if (!word) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Word not found" });
+      }
+
+      const anthropic = getAnthropic();
+
+      let response;
+      try {
+        response = await anthropic.messages.create({
+          model: TRANSLATION_MODEL,
+          max_tokens: 1024,
+          messages: [
+            {
+              role: "user",
+              content: buildReviewMeaningPrompt(
+                word.chinese,
+                word.pinyin,
+                word.english,
+                word.meaning ?? "",
+                input.userAnswer,
+              ),
+            },
+          ],
+        });
+      } catch (err) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Anthropic request failed: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        });
+      }
+
+      const text = response.content
+        .map((block) => (block.type === "text" ? block.text : ""))
+        .join("");
+
+      const raw = extractJson(text);
+      if (!raw) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Could not parse model output: ${text.slice(0, 200)}`,
+        });
+      }
+
+      const parsed = reviewMeaningResponseSchema.safeParse(raw);
+      if (!parsed.success) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Model returned invalid shape: ${parsed.error.message}`,
+        });
+      }
+
+      return {
+        isValid: parsed.data.is_valid,
+        feedback: parsed.data.feedback,
+        suggestedEnglish: parsed.data.suggested_english,
+        suggestedMeaning: parsed.data.suggested_meaning,
+        currentEnglish: word.english,
+        currentMeaning: word.meaning ?? "",
+      };
     }),
 
   generateExamples: publicProcedure

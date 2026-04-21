@@ -12,6 +12,7 @@ type Props = {
   correctAnswer: React.ReactNode;
   userAnswer?: React.ReactNode;
   onNext: () => void;
+  reviewSlot?: React.ReactNode;
 };
 
 const GRADE_META: Record<Grade, { label: string; accent: string; ring: string }> = {
@@ -37,7 +38,13 @@ const GRADE_META: Record<Grade, { label: string; accent: string; ring: string }>
   },
 };
 
-export function TestFeedback({ grade, correctAnswer, userAnswer, onNext }: Props) {
+export function TestFeedback({
+  grade,
+  correctAnswer,
+  userAnswer,
+  onNext,
+  reviewSlot,
+}: Props) {
   const meta = GRADE_META[grade];
   const onNextRef = useRef(onNext);
 
@@ -81,6 +88,7 @@ export function TestFeedback({ grade, correctAnswer, userAnswer, onNext }: Props
           </div>
         </CardContent>
       </Card>
+      {reviewSlot}
       <Button
         type="button"
         onClick={onNext}

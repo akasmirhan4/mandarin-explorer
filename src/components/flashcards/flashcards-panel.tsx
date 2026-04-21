@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { MeaningReviewButton } from "~/components/flashcards/meaning-review-button";
 import { MeaningTest } from "~/components/flashcards/meaning-test";
 import { PinyinTest } from "~/components/flashcards/pinyin-test";
 import { TestFeedback } from "~/components/flashcards/test-feedback";
@@ -245,17 +246,37 @@ export function FlashcardsPanel() {
   const renderFeedback = () => {
     if (!submitted || !currentWord) return null;
     if (submitted.mode === "meaning") {
+      const meaningWord = currentWord;
       return (
         <TestFeedback
           grade={submitted.grade}
           userAnswer={submitted.userAnswer}
           correctAnswer={
             <span>
-              {currentWord.english}
-              {currentWord.meaning ? ` — ${currentWord.meaning}` : ""}
+              {meaningWord.english}
+              {meaningWord.meaning ? ` — ${meaningWord.meaning}` : ""}
             </span>
           }
           onNext={handleNext}
+          reviewSlot={
+            submitted.userAnswer.trim() ? (
+              <MeaningReviewButton
+                wordId={meaningWord.id}
+                userAnswer={submitted.userAnswer}
+                currentEnglish={meaningWord.english}
+                currentMeaning={meaningWord.meaning ?? ""}
+                onUpdated={(next) => {
+                  setQueue((q) =>
+                    q.map((w) =>
+                      w.id === meaningWord.id
+                        ? { ...w, english: next.english, meaning: next.meaning }
+                        : w,
+                    ),
+                  );
+                }}
+              />
+            ) : null
+          }
         />
       );
     }
