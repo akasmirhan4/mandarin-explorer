@@ -19,11 +19,19 @@ function normalizeEnglish(s: string): string {
     .trim();
 }
 
+function stripParentheticals(s: string): string {
+  return s.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function expandCandidates(word: Pick<VocabWord, "english" | "meaning">): string[] {
   const raw = [word.english, word.meaning ?? ""]
     .filter(Boolean)
     .flatMap((s) => s.split(/[,;/]/));
-  const normalized = raw.map(normalizeEnglish).filter(Boolean);
+  const normalized = raw.flatMap((s) => {
+    const full = normalizeEnglish(s);
+    const stripped = normalizeEnglish(stripParentheticals(s));
+    return [full, stripped];
+  }).filter(Boolean);
   return Array.from(new Set(normalized));
 }
 
