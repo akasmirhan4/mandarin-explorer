@@ -43,10 +43,10 @@ const TOPICS = [
 ];
 
 const TONES: { value: string; label: string }[] = [
-  { value: "1", label: "1st — Flat (ā)" },
-  { value: "2", label: "2nd — Rising (á)" },
-  { value: "3", label: "3rd — Falling-Rising (ǎ)" },
-  { value: "4", label: "4th — Falling (à)" },
+  { value: "1", label: "1st (ā)" },
+  { value: "2", label: "2nd (á)" },
+  { value: "3", label: "3rd (ǎ)" },
+  { value: "4", label: "4th (à)" },
 ];
 
 type MasteryBucket = "new" | "learning" | "reviewing" | "mastered";
@@ -237,7 +237,3 @@ function cap(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function ord(n: string) {
-  const map: Record<string, string> = { "1": "st", "2": "nd", "3": "rd" };
-  return map[n] ?? "th";
-}
