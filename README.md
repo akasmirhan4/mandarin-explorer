@@ -1,83 +1,107 @@
-# 词语探索 — Mandarin Explorer
+# 词语探索 — Mandarin Explorer (T3)
 
-A Mandarin Chinese learning tool that translates English words, shows stroke order animations, radical breakdowns, pronunciation with tone guides, and saves everything to a personal vocabulary tracker with flashcard review.
-
-## Features
-
-- **Translate** — Type any English word, get Chinese translations with pinyin, meaning, and context
-- **Stroke Order** — Interactive stroke animations and quizzing via [HanziWriter](https://hanziwriter.org/)
-- **Pronunciation** — Click any Chinese text to hear it spoken (Web Speech API)
-- **Radical Breakdown** — See the building blocks of each character
-- **Auto-save Vocab** — Every translation auto-saves to Supabase with AI-assigned topic, HSK level, and tags
-- **Vocab Library** — Filter by topic, tone, mastery level, or search
-- **Flashcards** — Spaced repetition review with mastery tracking
-
-## Tech Stack
-
-- Vanilla HTML/CSS/JS (single file)
-- [HanziWriter](https://hanziwriter.org/) — stroke order animations
-- [Supabase](https://supabase.com/) — vocab database
-- [Anthropic Claude API](https://docs.anthropic.com/) — translation + auto-tagging
-- Web Speech API — pronunciation
+Next.js App Router + TypeScript + tRPC + Drizzle + Tailwind + shadcn/ui rebuild of the original single-file Mandarin learning app.
 
 ## Setup
 
-### 1. Clone and open in VS Code
+### 1. Fill in `.env`
+
+```
+DATABASE_URL="postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true"
+ANTHROPIC_API_KEY="sk-ant-api03-..."
+```
+
+- `DATABASE_URL`: the **pooled** Supabase connection string (port 6543). Get it from Supabase dashboard → Project Settings → Database → Connection string (Transaction pooler).
+- `ANTHROPIC_API_KEY`: server-side only (not prefixed with `NEXT_PUBLIC_`). It never reaches the browser.
+
+### 2. Baseline the existing Supabase schema (one-time)
+
+The `vocab_words` and `review_log` tables already exist in Supabase. Drizzle owns the schema going forward, but the initial migration must be marked applied so it doesn't try to recreate them.
 
 ```bash
-cd mandarin-explorer
-code .
+npm run db:generate     # writes drizzle/0000_*.sql matching the live schema
 ```
 
-### 2. Add your API keys
+Inspect the generated SQL to confirm it mirrors the existing tables. Then, in the **Supabase SQL editor**, run:
 
-Copy the example config and add your keys:
-
-```bash
-cp config.example.js config.js
+```sql
+CREATE SCHEMA IF NOT EXISTS "drizzle";
+CREATE TABLE IF NOT EXISTS "drizzle"."__drizzle_migrations" (
+  id SERIAL PRIMARY KEY,
+  hash TEXT NOT NULL,
+  created_at BIGINT
+);
+-- Use the hash from drizzle/meta/_journal.json for migration 0000
+INSERT INTO "drizzle"."__drizzle_migrations" (hash, created_at)
+VALUES ('<hash>', <epoch-ms>);
 ```
 
-Edit `config.js`:
+From here on, `npm run db:migrate` is a no-op for 0000 and applies any future migrations cleanly. **Never run `db:push`** — that script has been removed from `package.json` to prevent accidental schema overwrites.
 
-```js
-const CONFIG = {
-  ANTHROPIC_API_KEY: "sk-ant-api03-...",  // from console.anthropic.com
-  SUPABASE_URL: "https://ocbnvtiywohkxzbvtcqg.supabase.co",
-  SUPABASE_ANON_KEY: "eyJ..."
-};
-```
-
-> `config.js` is gitignored — your keys stay local.
-
-### 3. Set up Supabase (if not already done)
-
-Run the SQL in `schema.sql` in your Supabase project's SQL Editor.
-
-### 4. Run locally
+### 3. Run
 
 ```bash
 npm run dev
 ```
 
-This starts a local server at `http://localhost:3000` with hot reload.
+Open http://localhost:3000.
 
-Alternatively, use the VS Code **Live Server** extension — right-click `index.html` → "Open with Live Server".
+## Scripts
 
-## Project Structure
+| Script | What it does |
+|---|---|
+| `npm run dev` | Next.js dev server (Turbopack) |
+| `npm run build` | Production build |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run db:generate` | Generate a new Drizzle migration from `schema.ts` |
+| `npm run db:migrate` | Apply pending migrations |
+| `npm run db:pull` | Introspect live DB into a throwaway schema (sanity check only) |
+| `npm run db:studio` | Open Drizzle Studio to browse data |
+
+## Architecture
 
 ```
-mandarin-explorer/
-├── index.html          # The entire app (HTML + CSS + JS)
-├── config.js           # Your API keys (gitignored)
-├── config.example.js   # Template for config
-├── schema.sql          # Supabase database schema
-├── package.json        # Dev server script
-├── .gitignore
-└── README.md
+src/
+├── app/
+│   ├── layout.tsx                  Fonts, providers, Toaster
+│   ├── page.tsx                    RSC shell, hydrates tRPC cache
+│   └── api/trpc/[trpc]/route.ts    tRPC handler
+│
+├── components/
+│   ├── tabs-shell.tsx              Main tabs (Translate / Vocab / Flashcards)
+│   ├── shared/                     ChineseText, ToneBadge, TagPill
+│   ├── translate/                  TranslatePanel + workspace + StrokeOrderViewer
+│   ├── library/                    LibraryPanel (filters, list, delete)
+│   ├── flashcards/                 FlashcardsPanel (SRS session)
+│   └── ui/                         shadcn/ui components
+│
+├── lib/
+│   ├── hooks/use-speech-synthesis.ts
+│   └── utils.ts                    shadcn cn() helper
+│
+├── server/
+│   ├── db/
+│   │   ├── schema.ts               vocabWords, reviewLog (with typed JSONB)
+│   │   ├── types.ts                CharacterData, ExampleSentence
+│   │   └── index.ts                Drizzle client
+│   ├── lib/
+│   │   ├── anthropic.ts            Server-only SDK client
+│   │   ├── srs.ts                  Pure SRS interval logic
+│   │   └── schemas/translation.ts  Zod schema for translation payload
+│   └── api/
+│       ├── root.ts                 appRouter
+│       ├── trpc.ts                 context + middleware
+│       └── routers/
+│           ├── health.ts           DB connectivity check
+│           ├── vocab.ts            list / count / create / delete / getDueForReview / toggleStar
+│           ├── translate.ts        Anthropic Claude translation (server-only)
+│           └── review.ts           submitReview (SRS update + review_log insert)
+│
+└── styles/globals.css              Design tokens ported from the original index.html
 ```
 
 ## Notes
 
-- The Anthropic API is called directly from the browser using `anthropic-dangerous-direct-browser-access` header. This is fine for personal use. For production, route through a backend proxy.
-- The Supabase anon key is safe for client-side use — it's designed for that. RLS policies control access.
-- Pronunciation quality depends on your browser/OS Chinese voice. Chrome on macOS/Windows typically has good Mandarin voices.
+- **Security**: the Anthropic API key lives server-side only. The old browser-direct call (`anthropic-dangerous-direct-browser-access`) is gone.
+- **Client-only bits**: HanziWriter (dynamic `import()` inside `useEffect`) and `speechSynthesis` stay in Client Components.
+- **Styling**: the original palette, fonts (Noto Serif SC + DM Sans), card shadows, and tone colors are preserved via CSS variables in `globals.css`. shadcn/ui primitives handle behavior/a11y; Tailwind utilities apply the app's visual tokens.

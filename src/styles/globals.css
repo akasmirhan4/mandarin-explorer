@@ -1,0 +1,199 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-chinese: var(--font-noto-serif-sc), "Noto Serif SC", serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-ink: var(--ink);
+  --color-red: var(--red);
+  --color-red-soft: var(--red-soft);
+  --color-jade: var(--jade);
+  --color-jade-soft: var(--jade-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-blue: var(--blue);
+  --color-blue-soft: var(--blue-soft);
+  --color-mist: var(--mist);
+  --color-text2: var(--text2);
+  --color-text3: var(--text3);
+
+  --color-tone-1-bg: var(--tone-1-bg);
+  --color-tone-1-fg: var(--tone-1-fg);
+  --color-tone-2-bg: var(--tone-2-bg);
+  --color-tone-2-fg: var(--tone-2-fg);
+  --color-tone-3-bg: var(--tone-3-bg);
+  --color-tone-3-fg: var(--tone-3-fg);
+  --color-tone-4-bg: var(--tone-4-bg);
+  --color-tone-4-fg: var(--tone-4-fg);
+  --color-tone-5-bg: var(--tone-5-bg);
+  --color-tone-5-fg: var(--tone-5-fg);
+
+  --shadow-sm-app: 0 1px 3px rgba(22, 22, 26, 0.04),
+    0 1px 2px rgba(22, 22, 26, 0.06);
+  --shadow-md-app: 0 4px 16px rgba(22, 22, 26, 0.06),
+    0 1px 3px rgba(22, 22, 26, 0.04);
+  --shadow-lg-app: 0 8px 32px rgba(22, 22, 26, 0.08),
+    0 2px 6px rgba(22, 22, 26, 0.04);
+
+  --radius-app: 14px;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+:root {
+  /* App-specific palette (from original index.html) */
+  --ink: #16161a;
+  --red: #d93025;
+  --red-soft: #fef0ef;
+  --jade: #1a7a52;
+  --jade-soft: #edf7f1;
+  --gold: #c49a1a;
+  --gold-soft: #fdf6e3;
+  --blue: #1a6bc4;
+  --blue-soft: #eef4fc;
+  --mist: #d9d3c7;
+  --text2: #6b6560;
+  --text3: #9e9790;
+
+  /* Tone badge colors */
+  --tone-1-bg: #e3f2fd;
+  --tone-1-fg: #1565c0;
+  --tone-2-bg: #e8f5e9;
+  --tone-2-fg: #2e7d32;
+  --tone-3-bg: #fff3e0;
+  --tone-3-fg: #ef6c00;
+  --tone-4-bg: #fce4ec;
+  --tone-4-fg: #c62828;
+  --tone-5-bg: #f3e5f5;
+  --tone-5-fg: #7b1fa2;
+
+  /* shadcn tokens mapped to the app palette */
+  --background: #f8f5ef;
+  --foreground: #16161a;
+  --card: #ffffff;
+  --card-foreground: #16161a;
+  --popover: #ffffff;
+  --popover-foreground: #16161a;
+  --primary: #d93025;
+  --primary-foreground: #ffffff;
+  --secondary: #16161a;
+  --secondary-foreground: #ffffff;
+  --muted: #f8f5ef;
+  --muted-foreground: #6b6560;
+  --accent: #d93025;
+  --accent-foreground: #ffffff;
+  --destructive: #d93025;
+  --border: #e6e0d4;
+  --input: #e6e0d4;
+  --ring: #d93025;
+
+  --radius: 0.875rem; /* 14px */
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+  }
+
+  .font-chinese {
+    font-family: var(--font-chinese);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseSpeak {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.5s ease-out;
+}
+
+.speaking-pulse {
+  animation: pulseSpeak 0.5s ease;
+}
+
+.app-header-title {
+  background: linear-gradient(135deg, #16161a, #d93025);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.mastery-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.2s;
+}
+.mastery-fill.m0 {
+  width: 0;
+}
+.mastery-fill.m1 {
+  width: 20%;
+  background: var(--red);
+}
+.mastery-fill.m2 {
+  width: 40%;
+  background: #ef6c00;
+}
+.mastery-fill.m3 {
+  width: 60%;
+  background: var(--gold);
+}
+.mastery-fill.m4 {
+  width: 80%;
+  background: var(--jade);
+}
+.mastery-fill.m5 {
+  width: 100%;
+  background: var(--jade);
+}
