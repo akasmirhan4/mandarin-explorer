@@ -1,0 +1,11 @@
+{
+  "name": "mandarin-explorer",
+  "version": "1.0.0",
+  "description": "Mandarin Chinese learning tool — translate, stroke order, radicals, pronunciation, vocab tracker with flashcards",
+  "scripts": {
+    "dev": "npx live-server --port=3000 --open",
+    "start": "npx live-server --port=3000"
+  },
+  "keywords": ["mandarin", "chinese", "learning", "hanziwriter", "supabase"],
+  "license": "MIT"
+}
