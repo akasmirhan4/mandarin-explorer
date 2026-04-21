@@ -6,6 +6,16 @@ import { ChineseText } from "~/components/shared/chinese-text";
 import { TagPill } from "~/components/shared/tag-pill";
 import { ToneBadge } from "~/components/shared/tone-badge";
 import { StrokeOrderViewer } from "~/components/translate/stroke-order-viewer";
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
+import { Empty, EmptyDescription } from "~/components/ui/empty";
+import { Separator } from "~/components/ui/separator";
 import { cn } from "~/lib/utils";
 import type { TranslationResponse } from "~/server/lib/schemas/translation";
 
@@ -45,7 +55,7 @@ export function TranslationWorkspace({ data, selectedIdx, onSelect }: Props) {
                 setCharIdx(0);
               }}
               className={cn(
-                "bg-card grid cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-4 rounded-[14px] border-2 px-5 py-4 text-left transition-all",
+                "bg-card grid cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-4 rounded-app border-2 px-5 py-4 text-left transition-all",
                 selected
                   ? "border-red"
                   : "hover:border-border border-transparent",
@@ -92,19 +102,22 @@ export function TranslationWorkspace({ data, selectedIdx, onSelect }: Props) {
           <Panel title="Stroke Order" tone="red">
             <div className="mb-3.5 flex flex-wrap gap-1.5">
               {option.characters.map((c, i) => (
-                <button
+                <Button
                   key={i}
                   type="button"
+                  variant="outline"
+                  size="sm"
+                  data-state={charIdx === i ? "active" : "inactive"}
                   onClick={() => setCharIdx(i)}
                   className={cn(
-                    "font-chinese border-border cursor-pointer rounded-[9px] border-2 px-3.5 py-1.5 text-lg font-bold transition-all",
+                    "font-chinese border-border text-ink h-auto rounded-[9px] border-2 bg-white px-3.5 py-1.5 text-lg font-bold transition-all",
                     charIdx === i
-                      ? "bg-red border-red text-white"
-                      : "text-ink hover:border-red bg-white",
+                      ? "bg-red border-red hover:bg-red text-white hover:text-white"
+                      : "hover:border-red",
                   )}
                 >
                   {c.char}
-                </button>
+                </Button>
               ))}
             </div>
             {activeChar && <StrokeOrderViewer character={activeChar.char} />}
@@ -113,12 +126,14 @@ export function TranslationWorkspace({ data, selectedIdx, onSelect }: Props) {
           <Panel title="Examples" tone="gold">
             <div className="flex flex-col gap-3">
               {option.examples.length === 0 && (
-                <p className="text-text3 text-xs">No examples</p>
+                <Empty className="border-0 py-3">
+                  <EmptyDescription>No examples</EmptyDescription>
+                </Empty>
               )}
               {option.examples.map((e, i) => (
                 <div
                   key={i}
-                  className="bg-background border-l-[3px] border-[var(--gold)] rounded-[9px] px-3.5 py-3"
+                  className="bg-background rounded-[9px] border-l-[3px] border-[var(--gold)] px-3.5 py-3"
                 >
                   <ChineseText
                     as="div"
@@ -136,7 +151,7 @@ export function TranslationWorkspace({ data, selectedIdx, onSelect }: Props) {
 
         <div className="flex flex-col gap-[18px]">
           <Panel title="Pronunciation" tone="blue">
-            <div className="border-border mb-3.5 border-b py-4 text-center">
+            <div className="py-4 text-center">
               <ChineseText
                 as="div"
                 className="text-[42px] leading-none font-black"
@@ -152,6 +167,7 @@ export function TranslationWorkspace({ data, selectedIdx, onSelect }: Props) {
                 </div>
               )}
             </div>
+            <Separator className="mb-3.5" />
             <div className="flex flex-col gap-2">
               {option.characters.map((c, i) => (
                 <div
@@ -179,7 +195,9 @@ export function TranslationWorkspace({ data, selectedIdx, onSelect }: Props) {
           <Panel title="Radicals" tone="jade">
             <div className="flex flex-col gap-2.5">
               {option.characters.length === 0 && (
-                <p className="text-text3 text-xs">No data</p>
+                <Empty className="border-0 py-3">
+                  <EmptyDescription>No data</EmptyDescription>
+                </Empty>
               )}
               {option.characters.map((c, i) =>
                 !c.radical ? null : (
@@ -202,9 +220,12 @@ export function TranslationWorkspace({ data, selectedIdx, onSelect }: Props) {
                         {c.radical_meaning}
                       </div>
                     </div>
-                    <span className="text-text3 rounded-md bg-white px-2 py-0.5 text-[9px] font-semibold whitespace-nowrap">
+                    <Badge
+                      variant="outline"
+                      className="text-text3 h-auto rounded-md border-transparent bg-white px-2 py-0.5 text-[9px] font-semibold whitespace-nowrap"
+                    >
                       {c.radical_strokes || "?"} str
-                    </span>
+                    </Badge>
                   </div>
                 ),
               )}
@@ -233,21 +254,18 @@ function Panel({
   }[tone];
 
   return (
-    <div
-      className="bg-card overflow-hidden rounded-[14px]"
-      style={{ boxShadow: "var(--shadow-sm-app)" }}
-    >
-      <div className="border-border flex items-center justify-between border-b px-5 py-3.5">
-        <span
+    <Card className="bg-card overflow-hidden rounded-app gap-0 p-0 py-0 shadow-(--shadow-sm-app) ring-0">
+      <CardHeader className="border-border flex items-center justify-between border-b px-5 py-3.5">
+        <CardTitle
           className={cn(
-            "text-[10px] font-bold tracking-[2px] uppercase",
+            "text-[10px] font-bold tracking-[2px] uppercase leading-normal",
             toneClass,
           )}
         >
           {title}
-        </span>
-      </div>
-      <div className="p-5">{children}</div>
-    </div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-5">{children}</CardContent>
+    </Card>
   );
 }

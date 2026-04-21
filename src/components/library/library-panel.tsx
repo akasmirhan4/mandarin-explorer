@@ -6,6 +6,13 @@ import { toast } from "sonner";
 import { ChineseText } from "~/components/shared/chinese-text";
 import { TagPill } from "~/components/shared/tag-pill";
 import { Button } from "~/components/ui/button";
+import { Card, CardContent } from "~/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "~/components/ui/empty";
 import { Input } from "~/components/ui/input";
 import {
   Select,
@@ -14,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { Skeleton } from "~/components/ui/skeleton";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 
@@ -100,17 +108,20 @@ export function LibraryPanel() {
       </div>
 
       <div className="flex flex-col gap-2.5">
-        {listQuery.isLoading && (
-          <p className="text-text3 py-12 text-center">Loading…</p>
-        )}
+        {listQuery.isLoading &&
+          Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-21 w-full rounded-app" />
+          ))}
 
         {!listQuery.isLoading && items.length === 0 && (
-          <div className="text-text3 py-12 text-center">
-            <p>No words yet</p>
-            <p className="text-xs">
-              Translate a word to build your vocab.
-            </p>
-          </div>
+          <Empty className="py-12">
+            <EmptyHeader>
+              <EmptyTitle>No words yet</EmptyTitle>
+              <EmptyDescription>
+                Translate a word to build your vocab.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         )}
 
         {items.map((w) => {
@@ -122,10 +133,9 @@ export function LibraryPanel() {
               })
             : "";
           return (
-            <div
+            <Card
               key={w.id}
-              className="bg-card grid grid-cols-[auto_1fr_auto] items-center gap-4 rounded-[14px] border-2 border-transparent px-5 py-4 transition-all hover:border-[var(--border)] max-[740px]:grid-cols-[auto_1fr]"
-              style={{ boxShadow: "var(--shadow-sm-app)" }}
+              className="bg-card grid grid-cols-[auto_1fr_auto] items-center gap-4 rounded-app border-2 border-transparent px-5 py-4 shadow-(--shadow-sm-app) ring-0 transition-all hover:border-border max-[740px]:grid-cols-[auto_1fr]"
             >
               <ChineseText
                 as="div"
@@ -173,7 +183,7 @@ export function LibraryPanel() {
                   Delete
                 </Button>
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>

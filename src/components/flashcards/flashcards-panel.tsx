@@ -5,6 +5,15 @@ import { toast } from "sonner";
 
 import { ChineseText } from "~/components/shared/chinese-text";
 import { Button } from "~/components/ui/button";
+import { Card, CardContent } from "~/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "~/components/ui/empty";
+import { Spinner } from "~/components/ui/spinner";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import type { VocabWord } from "~/server/db/schema";
@@ -74,16 +83,24 @@ export function FlashcardsPanel() {
 
   if (dueQuery.isLoading) {
     return (
-      <p className="text-text3 py-12 text-center">Loading flashcards…</p>
+      <div className="text-text3 flex flex-col items-center gap-3 py-12">
+        <Spinner className="text-red size-8" />
+        <p className="text-[13px]">Loading flashcards…</p>
+      </div>
     );
   }
 
   if (queue.length === 0) {
     return (
-      <div className="text-text3 py-12 text-center">
-        <p className="mb-2 text-base">📚 No vocab yet</p>
-        <p className="text-sm">Save some words first!</p>
-      </div>
+      <Empty className="py-12">
+        <EmptyHeader>
+          <EmptyMedia>
+            <span className="text-2xl">📚</span>
+          </EmptyMedia>
+          <EmptyTitle>No vocab yet</EmptyTitle>
+          <EmptyDescription>Save some words first!</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 
@@ -114,60 +131,60 @@ export function FlashcardsPanel() {
         </div>
       ) : currentWord ? (
         <>
-          <button
-            type="button"
-            onClick={() => setRevealed(true)}
-            className={cn(
-              "bg-card mb-4 flex min-h-[280px] w-full cursor-pointer flex-col items-center justify-center rounded-[18px] px-8 py-10 text-center transition-transform hover:-translate-y-0.5",
-            )}
-            style={{ boxShadow: "var(--shadow-md-app)" }}
+          <Card
+            className="bg-card mb-4 overflow-hidden rounded-[18px] p-0 shadow-(--shadow-md-app) ring-0 transition-transform hover:-translate-y-0.5"
           >
-            <div className="text-text3 mb-3 text-[10px] font-bold tracking-[2px] uppercase">
-              What does this mean?
-            </div>
-            <ChineseText
-              as="div"
-              className="mb-2 text-[56px] leading-tight font-black max-[740px]:text-[42px]"
-              speakable={false}
+            <button
+              type="button"
+              onClick={() => setRevealed(true)}
+              className="flex min-h-[280px] w-full cursor-pointer flex-col items-center justify-center px-8 py-10 text-center"
             >
-              {currentWord.chinese}
-            </ChineseText>
-            <div className="text-red text-xl font-semibold">
-              {currentWord.pinyin}
-            </div>
-            <div
-              className={cn(
-                "text-jade mt-4 text-lg font-medium transition-opacity",
-                revealed ? "opacity-100" : "opacity-0",
+              <div className="text-text3 mb-3 text-[10px] font-bold tracking-[2px] uppercase">
+                What does this mean?
+              </div>
+              <ChineseText
+                as="div"
+                className="mb-2 text-[56px] leading-tight font-black max-[740px]:text-[42px]"
+                speakable={false}
+              >
+                {currentWord.chinese}
+              </ChineseText>
+              <div className="text-red text-xl font-semibold">
+                {currentWord.pinyin}
+              </div>
+              <div
+                className={cn(
+                  "text-jade mt-4 text-lg font-medium transition-opacity",
+                  revealed ? "opacity-100" : "opacity-0",
+                )}
+              >
+                {currentWord.english} — {currentWord.meaning}
+              </div>
+              {!revealed && (
+                <div className="text-text3 mt-3 text-xs">Tap to reveal</div>
               )}
-            >
-              {currentWord.english} — {currentWord.meaning}
-            </div>
-            {!revealed && (
-              <div className="text-text3 mt-3 text-xs">Tap to reveal</div>
-            )}
-          </button>
+            </button>
+          </Card>
 
-          <div className="flex gap-2">
-            <RespBtn
-              show={revealed}
-              onClick={() => handleResponse("wrong")}
-              className="bg-red-soft text-red hover:bg-red hover:text-white"
-              label="✖ Wrong"
-            />
-            <RespBtn
-              show={revealed}
-              onClick={() => handleResponse("hard")}
-              className="bg-gold-soft text-gold hover:bg-gold hover:text-white"
-              label="❓ Hard"
-            />
-            <RespBtn
-              show={revealed}
-              onClick={() => handleResponse("easy")}
-              className="bg-jade-soft text-jade hover:bg-jade hover:text-white"
-              label="✔ Easy"
-            />
-          </div>
+          {revealed && (
+            <div className="flex gap-2">
+              <RespBtn
+                onClick={() => handleResponse("wrong")}
+                className="bg-red-soft text-red hover:bg-red hover:text-white"
+                label="✖ Wrong"
+              />
+              <RespBtn
+                onClick={() => handleResponse("hard")}
+                className="bg-gold-soft text-gold hover:bg-gold hover:text-white"
+                label="❓ Hard"
+              />
+              <RespBtn
+                onClick={() => handleResponse("easy")}
+                className="bg-jade-soft text-jade hover:bg-jade hover:text-white"
+                label="✔ Easy"
+              />
+            </div>
+          )}
         </>
       ) : null}
     </div>
@@ -176,40 +193,36 @@ export function FlashcardsPanel() {
 
 function Stat({ num, label }: { num: number; label: string }) {
   return (
-    <div
-      className="bg-card rounded-xl px-5 py-3 text-center"
-      style={{ boxShadow: "var(--shadow-sm-app)" }}
-    >
-      <div className="text-2xl font-bold">{num}</div>
-      <div className="text-text3 text-[10px] font-semibold tracking-[1px] uppercase">
-        {label}
-      </div>
-    </div>
+    <Card className="bg-card rounded-xl p-0 shadow-(--shadow-sm-app) ring-0">
+      <CardContent className="px-5 py-3 text-center">
+        <div className="text-2xl font-bold">{num}</div>
+        <div className="text-text3 text-[10px] font-semibold tracking-[1px] uppercase">
+          {label}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
 function RespBtn({
-  show,
   onClick,
   className,
   label,
 }: {
-  show: boolean;
   onClick: () => void;
   className: string;
   label: string;
 }) {
-  if (!show) return null;
   return (
-    <button
+    <Button
       type="button"
       onClick={onClick}
       className={cn(
-        "flex-1 cursor-pointer rounded-[12px] px-0 py-3.5 text-sm font-semibold transition-all",
+        "h-auto flex-1 cursor-pointer rounded-[12px] px-0 py-3.5 text-sm font-semibold transition-all",
         className,
       )}
     >
       {label}
-    </button>
+    </Button>
   );
 }

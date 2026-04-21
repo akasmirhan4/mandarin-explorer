@@ -5,7 +5,13 @@ import { useState } from "react";
 import { FlashcardsPanel } from "~/components/flashcards/flashcards-panel";
 import { LibraryPanel } from "~/components/library/library-panel";
 import { TranslatePanel } from "~/components/translate/translate-panel";
-import { cn } from "~/lib/utils";
+import { Badge } from "~/components/ui/badge";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "~/components/ui/tabs";
 import { api } from "~/trpc/react";
 
 type TabId = "translate" | "vocab" | "flashcards";
@@ -23,48 +29,43 @@ export function TabsShell() {
   ];
 
   return (
-    <>
-      <nav
-        className="bg-card border-border mb-7 flex gap-1 rounded-xl border p-1"
+    <Tabs
+      value={active}
+      onValueChange={(v) => setActive(v as TabId)}
+      className="flex-col gap-0"
+    >
+      <TabsList
+        className="bg-card border-border mb-7 flex h-auto w-full gap-1 rounded-xl border p-1"
         style={{ boxShadow: "var(--shadow-sm-app)" }}
       >
         {tabs.map((t) => (
-          <button
+          <TabsTrigger
             key={t.id}
-            type="button"
-            onClick={() => setActive(t.id)}
-            className={cn(
-              "flex-1 cursor-pointer rounded-[10px] px-4 py-3 text-center text-sm font-semibold transition-all",
-              active === t.id
-                ? "bg-ink text-white"
-                : "text-text2 hover:text-ink bg-transparent",
-            )}
-            style={
-              active === t.id ? { boxShadow: "var(--shadow-sm-app)" } : undefined
-            }
+            value={t.id}
+            className="group/tab text-text2 hover:text-ink data-active:bg-ink data-active:text-white h-auto flex-1 cursor-pointer rounded-[10px] border-transparent bg-transparent px-4 py-3 text-center text-sm font-semibold transition-all data-active:shadow-(--shadow-sm-app)"
           >
             {t.label}
             {t.count !== undefined && (
-              <span
-                className={cn(
-                  "ml-1.5 inline-block rounded-lg px-1.5 py-px text-[11px] font-bold",
-                  active === t.id
-                    ? "bg-white/20 text-white"
-                    : "bg-border text-text3",
-                )}
+              <Badge
+                variant="secondary"
+                className="bg-border text-text3 group-data-active/tab:bg-white/20 group-data-active/tab:text-white ml-1.5 h-auto rounded-lg border-transparent px-1.5 py-px text-[11px] font-bold"
               >
                 {t.count}
-              </span>
+              </Badge>
             )}
-          </button>
+          </TabsTrigger>
         ))}
-      </nav>
+      </TabsList>
 
-      <div className="animate-fade-up">
-        {active === "translate" && <TranslatePanel />}
-        {active === "vocab" && <LibraryPanel />}
-        {active === "flashcards" && <FlashcardsPanel />}
-      </div>
-    </>
+      <TabsContent value="translate" className="animate-fade-up">
+        <TranslatePanel />
+      </TabsContent>
+      <TabsContent value="vocab" className="animate-fade-up">
+        <LibraryPanel />
+      </TabsContent>
+      <TabsContent value="flashcards" className="animate-fade-up">
+        <FlashcardsPanel />
+      </TabsContent>
+    </Tabs>
   );
 }

@@ -1,3 +1,4 @@
+import { Badge } from "~/components/ui/badge";
 import { cn } from "~/lib/utils";
 
 const TONE_LABELS: Record<number, string> = {
@@ -19,13 +20,14 @@ const TONE_CLASSES: Record<number, string> = {
 export function ToneBadge({ tone }: { tone: number }) {
   const safeTone = TONE_CLASSES[tone] ? tone : 1;
   return (
-    <span
+    <Badge
+      variant="secondary"
       className={cn(
-        "rounded-[7px] px-2 py-[3px] text-[9px] font-bold whitespace-nowrap",
+        "h-auto rounded-[7px] border-transparent px-2 py-[3px] text-[9px] font-bold whitespace-nowrap",
         TONE_CLASSES[safeTone],
       )}
     >
       {TONE_LABELS[safeTone]} tone
-    </span>
+    </Badge>
   );
 }

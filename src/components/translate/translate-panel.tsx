@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { TranslationWorkspace } from "~/components/translate/translation-workspace";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { Spinner } from "~/components/ui/spinner";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import type { TranslationResponse } from "~/server/lib/schemas/translation";
@@ -93,24 +94,26 @@ export function TranslatePanel() {
         </div>
         <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
           {HINT_WORDS.map((h) => (
-            <button
+            <Button
               key={h}
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setWord(h);
                 doSearch(h);
               }}
-              className="bg-card border-border text-text2 hover:border-red hover:text-red cursor-pointer rounded-full border px-3 py-1 text-[11px] font-medium transition-all"
+              className="bg-card border-border text-text2 hover:border-red hover:text-red h-auto rounded-full border px-3 py-1 text-[11px] font-medium transition-all"
             >
               {h}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
 
       {translate.isPending && (
-        <div className="py-10 text-center">
-          <div className="border-border mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-[3px] border-t-[var(--red)]" />
+        <div className="flex flex-col items-center gap-3 py-10 text-center">
+          <Spinner className="text-red size-8" />
           <p className="text-text3 text-[13px]">Translating...</p>
         </div>
       )}

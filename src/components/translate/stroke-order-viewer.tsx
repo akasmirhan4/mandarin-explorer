@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 
@@ -138,16 +139,27 @@ export function StrokeOrderViewer({ character }: { character: string }) {
           Quiz Me
         </WriterButton>
       </div>
-      <div
-        className={cn(
-          "mt-2.5 flex min-h-[34px] items-center justify-center rounded-[9px] px-3 py-2 text-xs font-semibold",
-          feedback.variant === "correct" && "bg-jade-soft text-jade",
-          feedback.variant === "mistake" && "bg-red-soft text-red",
-          feedback.variant === "info" && "text-text2 bg-black/5",
-        )}
-      >
-        {feedback.text}
-      </div>
+      {feedback.text && (
+        <Alert
+          className={cn(
+            "mt-2.5 flex items-center justify-center rounded-[9px] border-transparent px-3 py-2",
+            feedback.variant === "correct" && "bg-jade-soft text-jade",
+            feedback.variant === "mistake" && "bg-red-soft text-red",
+            feedback.variant === "info" && "bg-black/5",
+          )}
+        >
+          <AlertDescription
+            className={cn(
+              "text-xs font-semibold",
+              feedback.variant === "correct" && "text-jade",
+              feedback.variant === "mistake" && "text-red",
+              feedback.variant === "info" && "text-text2",
+            )}
+          >
+            {feedback.text}
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 }
