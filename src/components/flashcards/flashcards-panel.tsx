@@ -248,15 +248,14 @@ export function FlashcardsPanel() {
   }, [selectedTests]);
 
   useEffect(() => {
-    if (dueQuery.data) {
+    if (dueQuery.data && !started) {
       setQueue(dueQuery.data);
       setIdx(0);
       setCorrect(0);
       setTotal(0);
       setSubmitted(null);
-      setStarted(false);
     }
-  }, [dueQuery.data]);
+  }, [dueQuery.data, started]);
 
   const currentWord = queue[idx];
 
