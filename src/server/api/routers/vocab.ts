@@ -113,11 +113,16 @@ export const vocabRouter = createTRPCRouter({
 
     if (input.search) {
       const pattern = `%${input.search}%`;
+      const toneMarks = "āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜüĀÁǍÀĒÉĚÈĪÍǏÌŌÓǑÒŪÚǓÙǕǗǙǛÜ";
+      const toneBases = "aaaaeeeeiiiioooouuuuuuuuuAAAAEEEEIIIIOOOOUUUUUUUUU";
+      const stripped = input.search.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const strippedPattern = `%${stripped}%`;
       conditions.push(
         or(
           ilike(vocabWords.english, pattern),
           ilike(vocabWords.chinese, pattern),
           ilike(vocabWords.pinyin, pattern),
+          sql`translate(${vocabWords.pinyin}, ${toneMarks}, ${toneBases}) ILIKE ${strippedPattern}`,
           sql`EXISTS (
             SELECT 1 FROM unnest(${vocabWords.tags}) AS tag
             WHERE tag ILIKE ${pattern}
