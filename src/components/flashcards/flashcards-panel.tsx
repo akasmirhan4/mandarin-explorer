@@ -40,11 +40,66 @@ type Submitted =
       charsAttempted: number;
     };
 
-function pickTestMode(word: VocabWord): TestMode {
+const ALL_TEST_MODES: TestMode[] = ["meaning", "pinyin", "tone", "writing"];
+
+const TEST_OPTIONS: {
+  mode: TestMode;
+  label: string;
+  description: string;
+  requiresChars: boolean;
+}[] = [
+  {
+    mode: "writing",
+    label: "Writing",
+    description: "Draw each character stroke by stroke",
+    requiresChars: true,
+  },
+  {
+    mode: "tone",
+    label: "Tones",
+    description: "Pick the tone for each character",
+    requiresChars: true,
+  },
+  {
+    mode: "pinyin",
+    label: "Pinyin",
+    description: "Type the pronunciation",
+    requiresChars: false,
+  },
+  {
+    mode: "meaning",
+    label: "Definition",
+    description: "Translate to English",
+    requiresChars: false,
+  },
+];
+
+const SELECTED_TESTS_STORAGE_KEY = "flashcards:selected-tests";
+
+function loadSelectedTests(): Set<TestMode> {
+  const fallback = new Set<TestMode>(ALL_TEST_MODES);
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(SELECTED_TESTS_STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return fallback;
+    const valid = parsed.filter((m): m is TestMode =>
+      ALL_TEST_MODES.includes(m as TestMode),
+    );
+    return valid.length > 0 ? new Set(valid) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function pickTestMode(word: VocabWord, allowed: Set<TestMode>): TestMode {
   const hasChars = (word.characters ?? []).length > 0;
-  const pool: TestMode[] = hasChars
+  const base: TestMode[] = hasChars
     ? ["meaning", "pinyin", "tone", "writing"]
     : ["meaning", "pinyin"];
+  const filtered = base.filter((m) => allowed.has(m));
+  const pool = filtered.length > 0 ? filtered : base;
   return pool[Math.floor(Math.random() * pool.length)]!;
 }
 
@@ -171,6 +226,26 @@ export function FlashcardsPanel() {
   const [total, setTotal] = useState(0);
   const [mode, setMode] = useState<TestMode>("meaning");
   const [submitted, setSubmitted] = useState<Submitted | null>(null);
+  const [selectedTests, setSelectedTests] = useState<Set<TestMode>>(
+    () => new Set<TestMode>(ALL_TEST_MODES),
+  );
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    setSelectedTests(loadSelectedTests());
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        SELECTED_TESTS_STORAGE_KEY,
+        JSON.stringify(Array.from(selectedTests)),
+      );
+    } catch {
+      // ignore quota/serialization errors
+    }
+  }, [selectedTests]);
 
   useEffect(() => {
     if (dueQuery.data) {
@@ -179,7 +254,7 @@ export function FlashcardsPanel() {
       setCorrect(0);
       setTotal(0);
       setSubmitted(null);
-      if (dueQuery.data[0]) setMode(pickTestMode(dueQuery.data[0]));
+      setStarted(false);
     }
   }, [dueQuery.data]);
 
@@ -229,10 +304,35 @@ export function FlashcardsPanel() {
     setIdx(nextIdx);
     setSubmitted(null);
     const nextWord = queue[nextIdx];
-    if (nextWord) setMode(pickTestMode(nextWord));
+    if (nextWord) setMode(pickTestMode(nextWord, selectedTests));
+  };
+
+  const handleStart = () => {
+    if (selectedTests.size === 0) return;
+    const firstWord = queue[0];
+    if (!firstWord) return;
+    setIdx(0);
+    setCorrect(0);
+    setTotal(0);
+    setSubmitted(null);
+    setMode(pickTestMode(firstWord, selectedTests));
+    setStarted(true);
+  };
+
+  const toggleTest = (mode: TestMode) => {
+    setSelectedTests((prev) => {
+      const next = new Set(prev);
+      if (next.has(mode)) {
+        next.delete(mode);
+      } else {
+        next.add(mode);
+      }
+      return next;
+    });
   };
 
   const restart = () => {
+    setStarted(false);
     void dueQuery.refetch();
   };
 
@@ -260,6 +360,90 @@ export function FlashcardsPanel() {
   }
 
   const dueRemaining = Math.max(0, queue.length - idx);
+  const hasAnyChars = queue.some((w) => (w.characters ?? []).length > 0);
+
+  if (!started) {
+    return (
+      <div className="mx-auto max-w-[480px]">
+        <Card className="bg-card rounded-2xl p-0 shadow-(--shadow-sm-app) ring-0">
+          <CardContent className="flex flex-col gap-5 px-6 py-6">
+            <div className="text-center">
+              <h3 className="text-lg font-bold">Ready to review?</h3>
+              <p className="text-text3 mt-1 text-[13px]">
+                {queue.length} card{queue.length === 1 ? "" : "s"} due · pick
+                which tests to include
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              {TEST_OPTIONS.map((opt) => {
+                const isSelected = selectedTests.has(opt.mode);
+                const isDisabled = opt.requiresChars && !hasAnyChars;
+                return (
+                  <button
+                    key={opt.mode}
+                    type="button"
+                    onClick={() => toggleTest(opt.mode)}
+                    disabled={isDisabled}
+                    aria-pressed={isSelected}
+                    className={cn(
+                      "flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all",
+                      isSelected
+                        ? "border-red bg-red/10"
+                        : "border-border bg-transparent hover:border-text3/40",
+                      isDisabled && "cursor-not-allowed opacity-50",
+                    )}
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold">
+                        {opt.label}
+                      </span>
+                      <span className="text-text3 text-[12px]">
+                        {opt.description}
+                        {isDisabled ? " · needs character data" : ""}
+                      </span>
+                    </div>
+                    <span
+                      className={cn(
+                        "flex size-5 items-center justify-center rounded-md border",
+                        isSelected
+                          ? "border-red bg-red text-white"
+                          : "border-text3/40 bg-transparent",
+                      )}
+                      aria-hidden
+                    >
+                      {isSelected ? (
+                        <svg
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className="size-3.5"
+                        >
+                          <path
+                            d="M3 8.5 6.5 12 13 5"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      ) : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <Button
+              type="button"
+              onClick={handleStart}
+              disabled={selectedTests.size === 0}
+              className="bg-red hover:bg-red/90 h-11 rounded-[12px] text-sm font-semibold text-white"
+            >
+              Start review
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const renderFeedback = () => {
     if (!submitted || !currentWord) return null;
