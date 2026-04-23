@@ -23,6 +23,20 @@ function stripParentheticals(s: string): string {
   return s.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function singularizeWord(word: string): string {
+  if (word.endsWith("ies") && word.length > 3) return word.slice(0, -3) + "y";
+  if (/(ches|shes|xes|ses|zes)$/.test(word) && word.length > 4) return word.slice(0, -2);
+  if (word.endsWith("s") && !word.endsWith("ss") && word.length > 3) {
+    return word.slice(0, -1);
+  }
+  return word;
+}
+
+function singularizePhrase(phrase: string): string {
+  if (!phrase) return phrase;
+  return phrase.split(" ").map(singularizeWord).join(" ");
+}
+
 function expandCandidates(word: Pick<VocabWord, "english" | "meaning">): string[] {
   const raw = [word.english, word.meaning ?? ""]
     .filter(Boolean)
@@ -59,6 +73,8 @@ export function gradeMeaning(
   if (!user) return "wrong";
   const candidates = expandCandidates(word);
   if (candidates.some((c) => c === user)) return "exact";
+  const userSingular = singularizePhrase(user);
+  if (candidates.some((c) => singularizePhrase(c) === userSingular)) return "exact";
   const tolerance = user.length <= 4 ? 1 : 2;
   if (candidates.some((c) => levenshtein(c, user) <= tolerance)) return "close";
   return "wrong";
