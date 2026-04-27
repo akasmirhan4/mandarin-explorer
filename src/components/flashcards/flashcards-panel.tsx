@@ -40,6 +40,28 @@ type Submitted =
       charsAttempted: number;
     };
 
+type PerModeStats = { total: number; exact: number; close: number; wrong: number };
+type MissedCard = { word: VocabWord; mode: TestMode; grade: Grade };
+type SessionStats = {
+  total: number;
+  exact: number;
+  close: number;
+  wrong: number;
+  perMode: Partial<Record<TestMode, PerModeStats>>;
+  missed: MissedCard[];
+};
+
+const emptyStats = (): SessionStats => ({
+  total: 0,
+  exact: 0,
+  close: 0,
+  wrong: 0,
+  perMode: {},
+  missed: [],
+});
+
+const MISSED_LIST_CAP = 8;
+
 const ALL_TEST_MODES: TestMode[] = ["meaning", "pinyin", "tone", "writing"];
 
 const TEST_OPTIONS: {
@@ -222,14 +244,16 @@ export function FlashcardsPanel() {
 
   const [queue, setQueue] = useState<VocabWord[]>([]);
   const [idx, setIdx] = useState(0);
-  const [correct, setCorrect] = useState(0);
-  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<SessionStats>(() => emptyStats());
   const [mode, setMode] = useState<TestMode>("meaning");
   const [submitted, setSubmitted] = useState<Submitted | null>(null);
   const [selectedTests, setSelectedTests] = useState<Set<TestMode>>(
     () => new Set<TestMode>(ALL_TEST_MODES),
   );
   const [started, setStarted] = useState(false);
+
+  const correct = stats.exact + stats.close;
+  const total = stats.total;
 
   useEffect(() => {
     setSelectedTests(loadSelectedTests());
@@ -251,8 +275,7 @@ export function FlashcardsPanel() {
     if (dueQuery.data && !started) {
       setQueue(dueQuery.data);
       setIdx(0);
-      setCorrect(0);
-      setTotal(0);
+      setStats(emptyStats());
       setSubmitted(null);
     }
   }, [dueQuery.data, started]);
@@ -262,10 +285,38 @@ export function FlashcardsPanel() {
   const recordReview = (grade: Grade) => {
     if (!currentWord) return;
     const response = mapGradeToResponse(grade);
-    setTotal((t) => t + 1);
-    if (response !== "wrong") setCorrect((c) => c + 1);
+    const bucket: "exact" | "close" | "wrong" =
+      grade === "exact" ? "exact" : grade === "close" ? "close" : "wrong";
+    const cardMode = mode;
+    const cardWord = currentWord;
+    setStats((prev) => {
+      const prevMode = prev.perMode[cardMode] ?? {
+        total: 0,
+        exact: 0,
+        close: 0,
+        wrong: 0,
+      };
+      const nextMode: PerModeStats = {
+        total: prevMode.total + 1,
+        exact: prevMode.exact + (bucket === "exact" ? 1 : 0),
+        close: prevMode.close + (bucket === "close" ? 1 : 0),
+        wrong: prevMode.wrong + (bucket === "wrong" ? 1 : 0),
+      };
+      const missed =
+        bucket === "wrong"
+          ? [...prev.missed, { word: cardWord, mode: cardMode, grade }]
+          : prev.missed;
+      return {
+        total: prev.total + 1,
+        exact: prev.exact + (bucket === "exact" ? 1 : 0),
+        close: prev.close + (bucket === "close" ? 1 : 0),
+        wrong: prev.wrong + (bucket === "wrong" ? 1 : 0),
+        perMode: { ...prev.perMode, [cardMode]: nextMode },
+        missed,
+      };
+    });
     submitReview.mutate(
-      { wordId: currentWord.id, response, testType: mode },
+      { wordId: cardWord.id, response, testType: cardMode },
       {
         onSuccess: () => {
           void utils.vocab.list.invalidate();
@@ -311,8 +362,7 @@ export function FlashcardsPanel() {
     const firstWord = queue[0];
     if (!firstWord) return;
     setIdx(0);
-    setCorrect(0);
-    setTotal(0);
+    setStats(emptyStats());
     setSubmitted(null);
     setMode(pickTestMode(firstWord, selectedTests));
     setStarted(true);
@@ -333,6 +383,18 @@ export function FlashcardsPanel() {
   const restart = () => {
     setStarted(false);
     void dueQuery.refetch();
+  };
+
+  const restartWithMistakes = () => {
+    const mistakeWords = Array.from(
+      new Map(stats.missed.map((m) => [m.word.id, m.word])).values(),
+    );
+    if (!mistakeWords.length) return;
+    setQueue(mistakeWords);
+    setStats(emptyStats());
+    setIdx(0);
+    setSubmitted(null);
+    setMode(pickTestMode(mistakeWords[0]!, selectedTests));
   };
 
   if (dueQuery.isLoading) {
@@ -567,20 +629,11 @@ export function FlashcardsPanel() {
       </div>
 
       {idx >= queue.length ? (
-        <div className="py-12 text-center">
-          <h3 className="mb-2 text-2xl font-bold">🎉 Done!</h3>
-          <p className="text-text2 mb-4 text-sm">
-            {correct}/{total} correct (
-            {total ? Math.round((correct / total) * 100) : 0}%)
-          </p>
-          <Button
-            type="button"
-            onClick={restart}
-            className="bg-red hover:bg-red/90 rounded-[12px] px-7 py-3 text-sm font-semibold text-white"
-          >
-            Review Again
-          </Button>
-        </div>
+        <SessionSummary
+          stats={stats}
+          onReviewAgain={restart}
+          onReviewMistakes={restartWithMistakes}
+        />
       ) : currentWord ? (
         submitted ? (
           renderFeedback()
@@ -605,6 +658,200 @@ function Stat({ num, label }: { num: number; label: string }) {
         <div className="text-2xl font-bold">{num}</div>
         <div className="text-text3 text-[10px] font-semibold tracking-[1px] uppercase">
           {label}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+const GRADE_PILL_CLASSES: Record<"exact" | "close" | "wrong", string> = {
+  exact: "bg-[var(--tone-2-bg)] text-[var(--tone-2-fg)]",
+  close: "bg-[var(--tone-3-bg)] text-[var(--tone-3-fg)]",
+  wrong: "bg-[var(--tone-4-bg)] text-[var(--tone-4-fg)]",
+};
+
+const GRADE_LABEL: Record<"exact" | "close" | "wrong", string> = {
+  exact: "Exact",
+  close: "Close",
+  wrong: "Missed",
+};
+
+function GradePill({
+  kind,
+  count,
+}: {
+  kind: "exact" | "close" | "wrong";
+  count: number;
+}) {
+  if (count === 0) return null;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-baseline gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold whitespace-nowrap",
+        GRADE_PILL_CLASSES[kind],
+      )}
+    >
+      <span className="text-sm font-bold">{count}</span>
+      <span className="opacity-80">{GRADE_LABEL[kind]}</span>
+    </span>
+  );
+}
+
+const MODE_LABEL_BY_MODE: Record<TestMode, string> = Object.fromEntries(
+  TEST_OPTIONS.map((o) => [o.mode, o.label]),
+) as Record<TestMode, string>;
+
+function ModeRow({ mode, stats }: { mode: TestMode; stats: PerModeStats }) {
+  const correct = stats.exact + stats.close;
+  const pct = stats.total ? Math.round((correct / stats.total) * 100) : 0;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between gap-2 text-[13px]">
+        <span className="font-semibold">{MODE_LABEL_BY_MODE[mode]}</span>
+        <span className="text-text3 font-mono text-[11px]">
+          {correct}/{stats.total} · {pct}%
+        </span>
+      </div>
+      <div className="bg-border h-1.5 overflow-hidden rounded-full">
+        <div
+          className="bg-red h-full rounded-full transition-all"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function MissedCardItem({ entry }: { entry: MissedCard }) {
+  const { word, mode, grade } = entry;
+  return (
+    <li className="flex items-center gap-3 py-2">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-baseline gap-2">
+          <ChineseText as="span" className="text-base font-bold">
+            {word.chinese}
+          </ChineseText>
+          <span className="text-text3 truncate font-mono text-[11px]">
+            {word.pinyin}
+          </span>
+        </div>
+        <span className="text-text2 truncate text-[12px]">{word.english}</span>
+      </div>
+      <span
+        className={cn(
+          "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap",
+          grade === "gave_up"
+            ? "bg-text3/15 text-text3"
+            : "bg-[var(--tone-4-bg)] text-[var(--tone-4-fg)]",
+        )}
+      >
+        {grade === "gave_up" ? "skipped" : MODE_LABEL_BY_MODE[mode]}
+      </span>
+    </li>
+  );
+}
+
+function SessionSummary({
+  stats,
+  onReviewAgain,
+  onReviewMistakes,
+}: {
+  stats: SessionStats;
+  onReviewAgain: () => void;
+  onReviewMistakes: () => void;
+}) {
+  const correct = stats.exact + stats.close;
+  const pct = stats.total ? Math.round((correct / stats.total) * 100) : 0;
+  const modeEntries = (Object.entries(stats.perMode) as [
+    TestMode,
+    PerModeStats,
+  ][]).filter(([, s]) => s.total > 0);
+  const visibleMissed = stats.missed.slice(0, MISSED_LIST_CAP);
+  const extraMissed = stats.missed.length - visibleMissed.length;
+
+  if (stats.total === 0) {
+    return (
+      <div className="py-12 text-center">
+        <h3 className="mb-2 text-2xl font-bold">No cards reviewed</h3>
+        <Button
+          type="button"
+          onClick={onReviewAgain}
+          className="bg-red hover:bg-red/90 rounded-[12px] px-7 py-3 text-sm font-semibold text-white"
+        >
+          Back to start
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <Card className="bg-card rounded-2xl p-0 shadow-(--shadow-sm-app) ring-0">
+      <CardContent className="flex flex-col gap-5 px-6 py-6">
+        <div className="text-center">
+          <h3 className="text-2xl font-bold">🎉 Done!</h3>
+          <p className="text-text2 mt-1 text-sm">
+            <span className="font-semibold">{correct}</span>
+            <span className="text-text3"> / {stats.total}</span>
+            <span className="text-text3"> · </span>
+            <span className="font-semibold">{pct}%</span>
+          </p>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-2">
+          <GradePill kind="exact" count={stats.exact} />
+          <GradePill kind="close" count={stats.close} />
+          <GradePill kind="wrong" count={stats.wrong} />
+        </div>
+
+        {modeEntries.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <div className="text-text3 text-[10px] font-semibold tracking-[1px] uppercase">
+              By test type
+            </div>
+            <div className="flex flex-col gap-3">
+              {modeEntries.map(([m, s]) => (
+                <ModeRow key={m} mode={m} stats={s} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {stats.missed.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <div className="text-text3 text-[10px] font-semibold tracking-[1px] uppercase">
+              Missed cards
+            </div>
+            <ul className="divide-border divide-y">
+              {visibleMissed.map((m, i) => (
+                <MissedCardItem key={`${m.word.id}-${m.mode}-${i}`} entry={m} />
+              ))}
+            </ul>
+            {extraMissed > 0 && (
+              <div className="text-text3 text-[12px]">
+                + {extraMissed} more
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2">
+          <Button
+            type="button"
+            onClick={onReviewAgain}
+            className="bg-red hover:bg-red/90 h-11 rounded-[12px] text-sm font-semibold text-white"
+          >
+            Review again
+          </Button>
+          {stats.missed.length > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onReviewMistakes}
+              className="border-border hover:border-text3/40 h-11 rounded-[12px] bg-transparent text-sm font-semibold"
+            >
+              Review mistakes ({stats.missed.length})
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
