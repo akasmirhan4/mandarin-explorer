@@ -40,13 +40,46 @@ function singularizePhrase(phrase: string): string {
 function expandCandidates(word: Pick<VocabWord, "english" | "meaning">): string[] {
   const raw = [word.english, word.meaning ?? ""]
     .filter(Boolean)
-    .flatMap((s) => s.split(/[,;/]/));
+    .flatMap((s) => s.split(/[,;/—–]|\s-\s/));
   const normalized = raw.flatMap((s) => {
     const full = normalizeEnglish(s);
     const stripped = normalizeEnglish(stripParentheticals(s));
     return [full, stripped];
   }).filter(Boolean);
   return Array.from(new Set(normalized));
+}
+
+const STOPWORDS = new Set([
+  "to", "a", "an", "the", "of", "for", "and", "or", "in", "on",
+  "at", "with", "by", "is", "are", "was", "were", "be", "been",
+  "being", "that", "this", "it", "its", "as", "from",
+]);
+
+function stemWord(word: string): string {
+  let w = word;
+  if (w.endsWith("ies") && w.length > 4) w = w.slice(0, -3) + "y";
+  else if (/(ches|shes|xes|ses|zes)$/.test(w) && w.length > 4) w = w.slice(0, -2);
+  else if (w.endsWith("ing") && w.length > 5) w = w.slice(0, -3);
+  else if (w.endsWith("ed") && w.length > 4) w = w.slice(0, -2);
+  else if (w.endsWith("s") && !w.endsWith("ss") && w.length > 3) w = w.slice(0, -1);
+  if (w.endsWith("e") && w.length > 4) w = w.slice(0, -1);
+  return w;
+}
+
+function contentStems(s: string): string[] {
+  return s
+    .split(" ")
+    .filter((w) => w && !STOPWORDS.has(w))
+    .map(stemWord);
+}
+
+function matchesByTokens(user: string, candidates: string[]): boolean {
+  const userStems = contentStems(user);
+  if (userStems.length < 2) return false;
+  return candidates.some((c) => {
+    const candStems = new Set(contentStems(c));
+    return userStems.every((t) => candStems.has(t));
+  });
 }
 
 function levenshtein(a: string, b: string): number {
@@ -77,6 +110,7 @@ export function gradeMeaning(
   if (candidates.some((c) => singularizePhrase(c) === userSingular)) return "exact";
   const tolerance = user.length <= 4 ? 1 : 2;
   if (candidates.some((c) => levenshtein(c, user) <= tolerance)) return "close";
+  if (matchesByTokens(user, candidates)) return "close";
   return "wrong";
 }
 
