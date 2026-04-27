@@ -58,6 +58,52 @@ Open http://localhost:3000.
 | `npm run db:pull` | Introspect live DB into a throwaway schema (sanity check only) |
 | `npm run db:studio` | Open Drizzle Studio to browse data |
 
+## Deploy to Cloudflare
+
+The app runs on Cloudflare Workers via [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare). The build output goes into `.open-next/` and is served by a Worker (configured in `wrangler.jsonc`).
+
+### One-time setup
+
+1. Install deps: `npm install`
+2. Authenticate: `npx wrangler login`
+3. Push your secrets to the Worker:
+
+   ```bash
+   npx wrangler secret put DATABASE_URL
+   npx wrangler secret put ANTHROPIC_API_KEY
+   ```
+
+   (You'll be prompted for each value.)
+
+4. For local Worker preview, copy the same values into `.dev.vars` (gitignored):
+
+   ```
+   DATABASE_URL="postgresql://..."
+   ANTHROPIC_API_KEY="sk-ant-..."
+   ```
+
+### Deploy
+
+```bash
+npm run deploy
+```
+
+This runs `opennextjs-cloudflare build && opennextjs-cloudflare deploy`. The default URL is `https://mandarin-explorer.<your-subdomain>.workers.dev`. Add a custom domain via Cloudflare dashboard → Workers → mandarin-explorer → Settings → Domains & Routes.
+
+### Local preview against the Worker runtime
+
+```bash
+npm run preview
+```
+
+Builds and serves via `wrangler dev`, exercising the same `nodejs_compat` runtime used in production.
+
+### Notes for Cloudflare
+
+- `wrangler.jsonc` enables `nodejs_compat` so `postgres-js` (TCP) and the Anthropic SDK both work on Workers. Use the **pooled** Supabase connection string (port 6543) — Workers prefer short-lived pooled connections.
+- The build runs `src/env.js` which validates env vars at build time. Either export `DATABASE_URL` and `ANTHROPIC_API_KEY` in the shell before building, or run with `SKIP_ENV_VALIDATION=1 npm run deploy` (the secrets you set with `wrangler secret put` are still required at runtime).
+- Static assets are served from the `ASSETS` binding — no R2 setup needed.
+
 ## Architecture
 
 ```

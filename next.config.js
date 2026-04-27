@@ -8,3 +8,12 @@ import "./src/env.js";
 const config = {};
 
 export default config;
+
+// Enable Cloudflare bindings (env, KV, etc.) inside `next dev`.
+// No-op outside the Workers/dev environment.
+if (process.env.NODE_ENV === "development") {
+  const { initOpenNextCloudflareForDev } = await import(
+    "@opennextjs/cloudflare"
+  );
+  await initOpenNextCloudflareForDev();
+}
