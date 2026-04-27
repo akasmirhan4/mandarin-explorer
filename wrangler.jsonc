@@ -1,0 +1,23 @@
+/**
+ * Cloudflare Workers config for the Next.js app, built via @opennextjs/cloudflare.
+ *
+ * Secrets (DATABASE_URL, ANTHROPIC_API_KEY) are NOT defined here. Set them with:
+ *   npx wrangler secret put DATABASE_URL
+ *   npx wrangler secret put ANTHROPIC_API_KEY
+ *
+ * For local `npm run preview`, put the same values in `.dev.vars` (gitignored).
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mandarin-explorer",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-04-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  }
+}
