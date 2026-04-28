@@ -20,4 +20,4 @@ export function getAnthropic(): Anthropic {
   return client;
 }
 
-export const TRANSLATION_MODEL = "claude-sonnet-4-6";
+export const TRANSLATION_MODEL = "claude-haiku-4-5";
